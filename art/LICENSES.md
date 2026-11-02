@@ -25,6 +25,22 @@
 | Клыкач, Рогач, Бородач, Орчиха, Фиолетовый | `heads/klykach.webp`, `rogach`, `borodach`, `orchiha`, `fioletoviy`; исходники `source/orcs/orc-*.png` | набор «200 Free Realistic Orc Hero Fantasy Character Portraits», автор Corax Digital Art: https://coraxdigitalart.itch.io/200-free-realistic-orc-hero-fantasy-character-portrait | Распространяется бесплатно (pay-what-you-want). Отдельной лицензии на странице не найдено; автор в профиле просит указывать «Corax Digital Art» и ссылку — это сделано в меню игры. Права на коммерческое использование явно не указаны: **перед коммерческим выпуском уточнить у автора** (coraxdigitalart@gmail.com). Страница itch.io недоступна из среды разработки, условия собраны по поисковой выдаче. |
 | Сапфир, Магма, Старейшина, Эльфийка, Кибер, Ящер, Череп | `heads/sapfir.webp`, `magma`, `magma_glow`, `stareishina`, `elfiyka`, `kiber`, `yashcher`, `cherep`, `cherep_glow`; исходники `source/references/` | прислал владелец проекта, источник неизвестен | **Временные, заменить до публичного выпуска.** |
 
+## Графика из игры Flare (CC BY-SA 3.0)
+Источник: https://github.com/flareteam/flare-game (папки `mods/fantasycore/images/icons/icons.png` и `mods/fantasycore/images/enemies/`). Авторы — команда Flare (Clint Bellanger и др., список в `CREDITS.txt` репозитория). Лицензия Creative Commons Attribution-ShareAlike 3.0: авторство указано в меню игры; изменённые нами версии этих картинок распространяются под той же лицензией CC BY-SA 3.0.
+
+| Файлы | Что это | Изменения |
+|---|---|---|
+| `weapons/morningstar.webp`, `mace`, `maul`, `staff_red`, `staff_green`, `longsword`, `sword_red`, `axe2b` | иконки оружия 64×64 | вырезаны из общего листа иконок, убран чёрный фон |
+| `monsters/wyvern_run.webp`, `wyvern_fire_run.webp`, `minotaur_run.webp` | анимация полёта/бега, 8 направлений × 8 кадров | кадры собраны в атлас и уменьшены |
+
+## Графика с OpenGameArt.org
+| Файлы | Источник | Автор | Лицензия |
+|---|---|---|---|
+| `weapons/kosa.webp`, `chakram`, `angel_axe`, `heavy_sword`, `angel_spear` (уменьшены); исходный архив `source/oga/angel_weapons.zip` | «Angel Weapons — Set», https://opengameart.org/content/angel-weapons-set | cethiel (https://opengameart.org/users/cethiel) | CC0 |
+| `weapons/fire_sword.webp`, `ice_sword` (вырезаны из общего листа, уменьшены) | «FANTASY-sword-set», https://opengameart.org/content/fantasy-sword-set | Melissa Krautheim (melle) | CC0 (автор просит по желанию указать имя — указано в меню) |
+| `weapons/devil_mace.webp` (вырезана булава из картинки, убран фон) | «Mace "Devil Star"», https://opengameart.org/content/mace-devil-star | Hansjörg Malthaner, http://opengameart.org/users/varkalandar | CC-BY (автор и ссылка указаны в меню) |
+| `monsters/demon_fly.webp` (4 кадра × 8 направлений из листа) | «Demon — Flare sprite sheets», https://opengameart.org/content/demon-flare-sprite-sheets | ryandansie | CC0 |
+
 ## Оружие и логотип
 | Что | Файлы | Источник | Лицензия / статус |
 |---|---|---|---|

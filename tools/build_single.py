@@ -13,7 +13,7 @@ for js in ('armory.js', 'horde.js', 'ffa.js', 'abilities.js', 'touch.js'):
     s = s.replace(tag, '<script>\n' + code + '\n</script>')
 def uri(path):
     return 'data:image/webp;base64,' + base64.b64encode(open(os.path.join(ROOT, path), 'rb').read()).decode()
-files = ['art/%s/%s' % (d, f) for d in ('heads', 'textures') for f in sorted(os.listdir(os.path.join(ROOT, 'art', d))) if f.endswith('.webp')]
+files = ['art/%s/%s' % (d, f) for d in ('heads', 'textures', 'weapons', 'monsters') for f in sorted(os.listdir(os.path.join(ROOT, 'art', d))) if f.endswith('.webp')]
 inline = ','.join("'%s':'%s'" % (p, uri(p)) for p in files)
 s = s.replace("<script>\n'use strict';", "<script>window.__INLINE={%s};</script>\n<script>\n'use strict';" % inline, 1)
 s = s.replace('src="art/logos/logo-main.webp"', 'src="%s"' % uri('art/logos/logo-main.webp'))

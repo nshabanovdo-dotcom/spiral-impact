@@ -12,10 +12,17 @@ const SLAV='"Ruslan Display",Georgia,serif';
 
 // ---------- Новое оружие ----------
 const NEW_W={
+  kosa:{name:'Коса жнеца',desc:'изогнутое лезвие режет широким махом',type:'melee',links:8,seg:17,mass:2.6,r:16,thr:380,k:0.0135,color:'#7ad8ff',rgb:'122,216,255',price:3200},
+  kopye:{name:'Небесное копьё',desc:'длинный выпад, колет остриём',type:'melee',links:5,seg:17,mass:2.0,r:14,thr:400,k:0.0145,color:'#9fe0ff',rgb:'159,224,255',price:2400},
+  chakram:{name:'Ангельский чакрам',desc:'вращающаяся звезда-лезвие',type:'melee',links:9,seg:17,mass:1.8,r:17,thr:420,k:0.0145,color:'#ffd88a',rgb:'255,216,138',price:2600},
+  mech:{name:'Тяжёлый меч',desc:'режет лезвием, длинный и быстрый',type:'melee',links:6,seg:17,mass:2.2,r:15,thr:380,k:0.0135,color:'#d8dde6',rgb:'216,221,230',price:1800},
+  krovmech:{name:'Огненный клинок',desc:'клинок из пламени: лечит на 35%',type:'melee',links:6,seg:17,mass:2.4,r:15,thr:380,k:0.013,color:'#ff4a4a',rgb:'255,74,74',price:2800,fx:'leech'},
+  topor:{name:'Боевой топор',desc:'тяжёлая широкая секира',type:'melee',links:5,seg:17,mass:3.8,r:18,thr:320,k:0.0125,color:'#c8ccd6',rgb:'200,204,214',price:2200},
+  bulava:{name:'Булава',desc:'надёжная, средний вес',type:'melee',links:6,seg:17,mass:2.8,r:16,thr:340,k:0.0128,color:'#b8c0cc',rgb:'184,192,204',price:900},
   zarya:{name:'Клинок зари',desc:'тесак с раскалённой кромкой, поджигает',type:'melee',links:6,seg:17,mass:2.6,r:16,thr:360,k:0.0125,color:'#ff9a3a',rgb:'255,154,58',price:3000,fx:'burn',sword:true},
   ametist:{name:'Аметистовый меч',desc:'клинок пустоты, лечит на 35% урона',type:'melee',links:7,seg:17,mass:2.0,r:15,thr:400,k:0.013,color:'#c070ff',rgb:'192,112,255',price:3500,fx:'leech',sword:true},
   yakor:{name:'Якорь бездны',desc:'очень тяжёлый, сносит с ног',type:'melee',links:5,seg:18,mass:4.6,r:21,thr:300,k:0.012,color:'#b07aff',rgb:'176,122,255',price:800},
-  kristall:{name:'Ледяной кристалл',desc:'замораживает врага',type:'melee',links:8,seg:17,mass:2.2,r:15,thr:380,k:0.013,color:'#8ff0ff',rgb:'143,240,255',price:1200,fx:'freeze'},
+  kristall:{name:'Ледяной клинок',desc:'замораживает врага',type:'melee',links:8,seg:17,mass:2.2,r:15,thr:380,k:0.013,color:'#8ff0ff',rgb:'143,240,255',price:1200,fx:'freeze'},
   cherep:{name:'Череп-кистень',desc:'лёгкий, очень длинная цепь',type:'melee',links:11,seg:17,mass:1.3,r:13,thr:480,k:0.017,color:'#d07aff',rgb:'208,122,255',price:1000},
   dushi:{name:'Сфера душ',desc:'лечит на 35% от урона',type:'melee',links:8,seg:17,mass:2.0,r:15,thr:400,k:0.012,color:'#7dffb0',rgb:'125,255,176',price:1500,fx:'leech'},
   kometa:{name:'Огненная комета',desc:'поджигает врага',type:'melee',links:7,seg:17,mass:2.4,r:16,thr:380,k:0.011,color:'#ff7a2a',rgb:'255,122,42',price:1100,fx:'burn'},
@@ -251,13 +258,14 @@ const ICON={
 };
 function headDir(f){const h=f.head,l=f.links[f.links.length-1]||f.body;return Math.atan2(h.y-l.y,h.x-l.x)}
 const _hb=drawHeadBase,_hg=drawHeadGlow;
-drawHeadBase=function(f){const d=HD[f.weaponId];if(!d)return _hb(f);const h=f.head;ctx.save();ctx.translate(h.x,h.y);d.base(ctx,h.r,f.spin,headDir(f));ctx.restore()};
-drawHeadGlow=function(f){const d=HD[f.weaponId];if(!d)return _hg(f);const h=f.head,w=f.W,dg=headDanger(f);ctx.save();ctx.translate(h.x,h.y);
+drawHeadBase=function(f){const d=HD[f.weaponId];if(!d||(window.ICONW&&ICONW[f.weaponId]&&ICONW[f.weaponId].ok))return _hb(f);const h=f.head;ctx.save();ctx.translate(h.x,h.y);d.base(ctx,h.r,f.spin,headDir(f));ctx.restore()};
+drawHeadGlow=function(f){const d=HD[f.weaponId];if(!d||(window.ICONW&&ICONW[f.weaponId]&&ICONW[f.weaponId].ok))return _hg(f);const h=f.head,w=f.W,dg=headDanger(f);ctx.save();ctx.translate(h.x,h.y);
   if(dg>0){const g=ctx.createRadialGradient(0,0,0,0,0,h.r*2.6);g.addColorStop(0,`rgba(${w.rgb},${dg*0.45})`);g.addColorStop(1,`rgba(${w.rgb},0)`);ctx.fillStyle=g;ctx.fillRect(-h.r*2.6,-h.r*2.6,h.r*5.2,h.r*5.2)}
   ctx.save();d.glow(ctx,h.r,f.spin,headDir(f),dg);ctx.restore();ctx.restore()};
 function drawIcon(cnv,id){
   const c=cnv.getContext('2d'),W=cnv.width,H=cnv.height,w=WEAPONS[id],r=Math.min(w.r,20)*1.05,cx=W/2,cy=H*0.62;
   const bg=c.createRadialGradient(cx,cy,4,cx,cy,W*0.6);bg.addColorStop(0,'#241c2e');bg.addColorStop(1,'#0c0a10');c.fillStyle=bg;c.fillRect(0,0,W,H);
+  if(window.ICONW&&ICONW[id]&&ICONW[id].ok){c.save();c.translate(cx,H*0.42);iconWeapon(c,id,15,Math.PI*0.5);c.restore();return}
   if(w.sword){c.save();c.translate(cx,H*0.5);swordDraw(c,id,15,-Math.PI/4,false);c.globalCompositeOperation='lighter';swordDraw(c,id,15,-Math.PI/4,true,0.8);c.restore();return}
   const brass=id==='posoh';c.strokeStyle=brass?'#c99a4a':'#8d93a3';c.lineWidth=1.6;
   for(let y=4,k=0;y<cy-r-4;y+=7,k++){c.beginPath();if(k%2)c.moveTo(cx,y-3),c.lineTo(cx,y+3);else c.ellipse(cx,y,2.4,4,0,0,7);c.stroke()}
