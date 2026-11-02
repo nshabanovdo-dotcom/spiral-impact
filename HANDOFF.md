@@ -2,10 +2,10 @@
 
 Скопируйте в новый чат Claude Code (облачная среда, репозиторий `nshabanovdo-dotcom/spiral-impact`):
 
-> Продолжи работу над игрой Spiral Impact. Ветка `claude/eager-rubin-b7t2z8`, текущая версия v2.3. Сначала прочитай `HANDOFF.md`, `README.md`, `CHANGELOG.md` и `art/LICENSES.md`, потом забери `origin/main` и влей в ветку, если там есть новое.
+> Продолжи работу над игрой Spiral Impact. Ветка `claude/eager-rubin-b7t2z8`, текущая версия v2.5. Сначала прочитай `HANDOFF.md`, `README.md`, `CHANGELOG.md` и `art/LICENSES.md`, потом забери `origin/main` и влей в ветку, если там есть новое.
 
 ## Состояние на 02.11.2026
-- Ветка `claude/eager-rubin-b7t2z8` содержит всё из `main` (v2.1: все против всех, плюшки, способности, дары, телефон) плюс облачную работу до v2.3. Ещё не влита в `main` — GitHub Pages публикует `main`.
+- Ветка `claude/eager-rubin-b7t2z8` (v2.5) содержит всё из `main` до v2.4 (все против всех, плюшки, способности у морд, ползунок «Скорость игры», телефон) плюс облачную работу. От `main` отличается только `HANDOFF.md`, проверками `tools/test/` и записью v2.5 — GitHub Pages публикует `main`.
 - Страница-превью игры (один файл со встроенными картинками): https://claude.ai/artifact/498vVbgtWpsxs4P3vNcWEq — обновляется сборкой `python tools/build_single.py <файл>` и публикацией этого файла по той же ссылке.
 - 10 вариантов логотипа: https://claude.ai/artifact/LndkGgu2gFmoexRkJj64gF (в игре стоит вариант №1, `art/logos/logo-main.webp`).
 - Сеть среды: уровень Full (интернет открыт — можно искать на OpenGameArt, Poly Haven и т. п.).

@@ -44,6 +44,7 @@ b{color:#e9d8ae;font-weight:600}
     <div class="row"><div class="label">Арена</div><div class="choices" id="arenas"></div></div>
     <div class="row"><div class="label">Боты</div><div class="choices" id="diffs"></div></div>
     <div class="row"><div class="label">Чувствительность мыши (в бою клавиши [ и ])</div><input type="range" id="sens" min="0.2" max="3" step="0.05"> <span id="sensv"></span></div>
+    <div class="row"><div class="label">Скорость игры</div><input type="range" id="gspeed" min="0.3" max="1" step="0.05"> <span id="gspeedv" style="display:inline-block;width:46px;text-align:right;color:#e9d8ae;font-weight:600"></span></div>
     <button class="btn" id="start" disabled style="opacity:.5">Загрузка…</button><button class="btn alt" id="resume" style="display:none">Продолжить</button><button class="btn alt" id="armoryBtn">Склад оружия</button>
     <div class="help" style="font-size:11px;margin-top:6px;color:#6f6656">Портреты орков: <a href="https://coraxdigitalart.itch.io/200-free-realistic-orc-hero-fantasy-character-portrait" target="_blank" rel="noopener" style="color:#a8946a">Corax Digital Art</a>. Оружие: Angel Weapons (cethiel, CC0), Fantasy sword set (Melissa Krautheim, CC0), Mace «Devil Star» (Hansjörg Malthaner, <a href="http://opengameart.org/users/varkalandar" target="_blank" rel="noopener" style="color:#a8946a">varkalandar</a>, CC-BY). Демон: Flare sprite sheets (CC0). Часть оружия и монстры (виверны, минотавр): <a href="https://github.com/flareteam/flare-game" target="_blank" rel="noopener" style="color:#a8946a">Flare</a>, CC BY-SA 3.0. Текстуры: WRAD Textures, CC0. Остальные лицензии — в art/LICENSES.md.</div>
     <div class="help">
@@ -56,7 +57,7 @@ b{color:#e9d8ae;font-weight:600}
 <script>
 'use strict';
 // Версию повышать при каждом изменении игры и записывать в CHANGELOG.md
-const VERSION='2.3';
+const VERSION='2.5';
 // Набор оружия на клавишах 1/2/3 — его задаёт склад оружия (armory.js)
 function LOADOUT(){return window.getLoadout?window.getLoadout():['gira','shar','posoh']}
 document.title='Spiral Impact v'+VERSION;document.getElementById('ver').textContent='v'+VERSION;
@@ -268,7 +269,7 @@ let started=false,paused=true,locked=false;
 const mouse={x:0,y:0,down:false};const keys={dash:false};const aim={x:0,y:0};
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
-let sens=parseFloat(lsGet('mordy_sens'))||1;let toast={text:'',t:0};
+let sens=parseFloat(lsGet('mordy_sens'))||1;let GAME_SPEED=parseFloat(lsGet('spiral_speed'))||0.5;let toast={text:'',t:0};
 const sel={skin:0,weapon:'gira',mode:'train',diff:1,arena:'random'};
 const DIFFS=[{name:'Лёгкие',k:0.55,react:0.5},{name:'Нормальные',k:0.85,react:0.28},{name:'Злые',k:1.0,react:0.14}];
 
@@ -1105,6 +1106,8 @@ makeChoices('modes',[{label:'Тренировка',value:'train',desc:'мане�
 makeChoices('arenas',[{label:'Случайная',value:'random',desc:'новая каждый бой'},...ARENAS.map(a=>({label:a.name,value:a.id,desc:a.desc}))],'arena');
 makeChoices('diffs',DIFFS.map((d,i)=>({label:d.name,value:i})),'diff');
 const sensEl=document.getElementById('sens');sensEl.value=sens;document.getElementById('sensv').textContent=sens.toFixed(2);
+const gsEl=document.getElementById('gspeed'),gsV=document.getElementById('gspeedv');gsEl.value=GAME_SPEED;gsV.textContent=Math.round(GAME_SPEED*100)+'%';
+gsEl.oninput=()=>{GAME_SPEED=parseFloat(gsEl.value);lsSet('spiral_speed',GAME_SPEED);gsV.textContent=Math.round(GAME_SPEED*100)+'%'};
 sensEl.oninput=()=>{sens=parseFloat(sensEl.value);lsSet('mordy_sens',sens);document.getElementById('sensv').textContent=sens.toFixed(2)};
 document.getElementById('start').onclick=()=>{initAudio();if(AC&&AC.state==='suspended')AC.resume();startGame();hideMenu()};
 document.getElementById('resume').onclick=()=>hideMenu();
@@ -1115,7 +1118,7 @@ function frame(now){
   const dt=Math.min(0.05,(now-last)/1000);last=now;rt+=dt;toast.t-=dt;
   if(started&&!paused){
     if(hitStop>0)hitStop-=dt;
-    else{const ts=slowT>0?0.3:1;slowT-=dt;acc+=dt*ts;let n=0;while(acc>=DT&&n<12){step();acc-=DT;n++}if(n>=12)acc=0}
+    else{const ts=slowT>0?0.3:1;slowT-=dt;acc+=dt*ts*GAME_SPEED;let n=0;while(acc>=DT&&n<12){step();acc-=DT;n++}if(n>=12)acc=0}
   }
   render(dt);requestAnimationFrame(frame);
 }

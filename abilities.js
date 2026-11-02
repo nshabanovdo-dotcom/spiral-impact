@@ -1,9 +1,7 @@
 'use strict';
-// Spiral Impact — способности бойцов.
-// Активная способность (E / ПКМ / кнопка на телефоне): три простых даны сразу (Ускорение, Скачок, Вихрь),
-// остальные покупаются за монеты (Невидимость, Клон, Щит, Исцеление).
-// Дар — срабатывает сам при смерти или при рождении (Феникс, Посмертный взрыв, Грозное явление), покупается.
-// У ботов способность зависит от морды, поэтому разные персонажи ведут себя по-разному.
+// Spiral Impact — способности морд. У каждой морды своя способность.
+// Активные включаются кнопкой (E / ПКМ / ✦ на телефоне), дары срабатывают сами при смерти или при рождении.
+// Три морды с простыми ускорениями даны сразу (Сапфир, Старейшина, Эльфийка), остальные открываются за монеты.
 (function(){
 const A=window.__armory,prof=A.prof,save=A.save;
 
@@ -14,7 +12,9 @@ const AB={
   nevid:{name:'Невидимость',desc:'5 с враги вас не видят; ваш удар снимает невидимость',cd:16,col:'#b9a6ff',rgb:'185,166,255',price:1500},
   klon:{name:'Клон',desc:'двойник с вашим оружием 12 с сражается на вашей стороне',cd:25,col:'#ff9ad0',rgb:'255,154,208',price:2500},
   shchit:{name:'Щит',desc:'3 с поглощает любой урон',cd:15,col:'#ffe08a',rgb:'255,224,138',price:1500},
-  lechenie:{name:'Исцеление',desc:'+45 здоровья за 2,5 с',cd:18,col:'#6dff8a',rgb:'109,255,138',price:1200}
+  lechenie:{name:'Исцеление',desc:'+45 здоровья за 2,5 с',cd:18,col:'#6dff8a',rgb:'109,255,138',price:1200},
+  yarost:{name:'Ярость',desc:'6 с урон ×1,5',cd:18,col:'#ff4a3a',rgb:'255,74,58',price:1200},
+  bezdna:{name:'Бездна',desc:'притягивает врагов рядом прямо под ваше оружие',cd:12,col:'#c070ff',rgb:'192,112,255',price:1500}
 };
 const DAR={
   feniks:{name:'Феникс',when:'при смерти',desc:'вместо гибели возрождаетесь на месте с 60% здоровья и огненной волной (раз в 45 с)',col:'#ff9a3a',rgb:'255,154,58',price:3000},
@@ -22,11 +22,17 @@ const DAR={
   yavlenie:{name:'Грозное явление',when:'при рождении',desc:'при появлении отбрасывает врагов, 5 с ярости и 2,5 с неуязвимости',col:'#ffd36a',rgb:'255,211,106',price:1800}
 };
 const FREE=['uskor','skachok','vihr'];
-const SKIN_AB=['shchit','vihr','lechenie','nevid','klon','skachok','uskor','shchit','vihr','klon','lechenie','nevid'];
+// морда → её способность (Магма — синяя — перерождается: Феникс)
+const MORDA={'Сапфир':'uskor','Старейшина':'skachok','Эльфийка':'vihr','Магма':'feniks','Кибер':'klon','Ящер':'nevid','Череп':'vzryv',
+  'Клыкач':'yarost','Рогач':'yavlenie','Бородач':'shchit','Орчиха':'lechenie','Фиолетовый':'bezdna'};
+const abOf=si=>SKINS[si]&&MORDA[SKINS[si].name];
+const infoOf=id=>AB[id]||DAR[id];
 if(!prof.abOwned)prof.abOwned=[...FREE];
 if(!prof.darOwned)prof.darOwned=[];
-if(!AB[prof.ability]||!prof.abOwned.includes(prof.ability))prof.ability='uskor';
-if(prof.passive&&!prof.darOwned.includes(prof.passive))prof.passive=null;
+const owns=id=>FREE.includes(id)||prof.abOwned.includes(id)||prof.darOwned.includes(id);
+const skinOpen=si=>{const id=abOf(si);return !id||owns(id)};
+function buy(id){const S=infoOf(id);if(owns(id)||prof.coins<S.price)return false;prof.coins-=S.price;(AB[id]?prof.abOwned:prof.darOwned).push(id);save();return true}
+function setFromSkin(f){const id=abOf(f.skin);f.abil=AB[id]?id:null;f.passive=DAR[id]?id:null}
 
 // ---------- Применение ----------
 function ring(x,y,rgb,size,grow,life){addP({type:'ring',x,y,life:life||0.45,max:life||0.45,size:size||16,grow:grow||420,rgb})}
@@ -52,6 +58,10 @@ function activate(f){
   else if(k==='klon')spawnClone(f);
   else if(k==='shchit')f.shieldT=3;
   else if(k==='lechenie')f.healT=2.5;
+  else if(k==='yarost'){f.buff=f.buff||{};f.buff.rage=Math.max(f.buff.rage||0,6);burst(b.x,b.y,S.rgb,24,400)}
+  else if(k==='bezdna'){const R=f.reach?f.reach*0.8:120;
+    for(const o of enemiesNear(f,b.x,b.y,480)){const d=Math.hypot(o.body.x-b.x,o.body.y-b.y);if(d>R)push(o,b.x,b.y,-Math.min(1400,(d-R)*4+300))}
+    for(let i=0;i<24;i++){const a=Math.random()*6.283,r=rnd(250,450);addP({type:'ember',x:b.x+Math.cos(a)*r,y:b.y+Math.sin(a)*r,vx:-Math.cos(a)*r*2.2,vy:-Math.sin(a)*r*2.2,life:0.45,max:0.45,size:rnd(2,3.5),rgb:S.rgb})}}
   f.abCd=S.cd;ring(b.x,b.y,S.rgb,20,380);sfx('dash',0.45);
   return true;
 }
@@ -91,7 +101,7 @@ kill=function(vic,att){
 };
 const _respawn=respawn;
 respawn=function(f){
-  if(f===player){f.abil=prof.ability;f.passive=prof.passive}
+  if(!f.isClone&&(f.kind==='player'||f.kind==='bot'))setFromSkin(f);
   _respawn(f);
   if(f.passive==='yavlenie'&&time>0.5){const b=f.body;f.inv=Math.max(f.inv,2.5);f.buff=f.buff||{};f.buff.rage=Math.max(f.buff.rage||0,5);
     ring(b.x,b.y,DAR.yavlenie.rgb,20,800,0.6);burst(b.x,b.y,DAR.yavlenie.rgb,30,500);floatText(f,'Грозное явление!',DAR.yavlenie.col);
@@ -99,12 +109,10 @@ respawn=function(f){
 };
 const _startGame=startGame;
 startGame=function(){
-  prof.ability=sel.abil||prof.ability;save();
+  if(!skinOpen(sel.skin))sel.skin=0;
   _startGame();
   for(const f of fighters){f.abCd=0;f.invisT=f.shieldT=f.healT=f.boostT=0;
-    if(f===player){f.abil=prof.ability;f.passive=prof.passive}
-    else if(f.kind==='bot'){f.abil=SKIN_AB[f.skin%SKIN_AB.length];const r=Math.random();f.passive=r<0.5?null:pick(Object.keys(DAR))}
-    else{f.abil=null;f.passive=null}}
+    if(f.kind==='player'||f.kind==='bot')setFromSkin(f);else{f.abil=null;f.passive=null}}
 };
 const _resetMatch=resetMatch;
 resetMatch=function(){fighters=fighters.filter(f=>!f.isClone);for(const f of fighters){f.abCd=0;f.invisT=f.shieldT=f.healT=f.boostT=0}_resetMatch()};
@@ -130,6 +138,8 @@ function botAbility(f){
     case 'klon':use=t&&d<650;break;
     case 'shchit':use=f.ai.evT>0||(hp<0.5&&d<350);break;
     case 'lechenie':use=hp<0.3||(hp<0.6&&d>400);break;
+    case 'yarost':use=t&&d<500;break;
+    case 'bezdna':use=t&&d>(f.reach||120)*0.9&&d<450;break;
   }
   if(use)activate(f);
 }
@@ -169,7 +179,7 @@ HOOKS.draw.push(layer=>{
   ctx.globalAlpha=1;
 });
 HOOKS.lights.push(()=>{for(const f of fighters){if(!f.alive||f.invisT>0)continue;if(f.shieldT>0)addLight(f.body.x,f.body.y,220,AB.shchit.rgb,0.6);if(f.healT>0)addLight(f.body.x,f.body.y,160,AB.lechenie.rgb,0.5)}});
-function abIcon(c,x,y,r,k,cdFrac){const S=AB[k];c.save();c.translate(x,y);
+function abIcon(c,x,y,r,k,cdFrac){const S=infoOf(k);c.save();c.translate(x,y);
   const g=c.createRadialGradient(-r*0.3,-r*0.35,r*0.1,0,0,r);g.addColorStop(0,'#fff');g.addColorStop(0.3,S.col);g.addColorStop(1,'rgba(0,0,0,0.9)');c.fillStyle=g;c.beginPath();c.arc(0,0,r,0,7);c.fill();
   c.fillStyle='rgba(20,12,30,0.9)';c.font=`700 ${r*0.95|0}px Georgia, serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(S.name[0],0,1);
   if(cdFrac>0){c.fillStyle='rgba(0,0,0,0.65)';c.beginPath();c.moveTo(0,0);c.arc(0,0,r,-Math.PI/2,-Math.PI/2+6.283*cdFrac);c.closePath();c.fill()}
@@ -178,65 +188,64 @@ window.abIcon=abIcon;
 HOOKS.hud.push(()=>{
   if(!started||!player)return;const p=player,k=p.abil;
   if(mode!=='bag'){const ph=p.W&&p.W.type==='ranged'?104:84,y=14+ph+8+34+8;
-    panel(14,y,262,p.passive?60:46);
+    panel(14,y,262,46);
     if(k&&AB[k]){const S=AB[k],cd=Math.max(0,p.abCd||0);abIcon(ctx,40,y+23,17,k,cd/S.cd);
       ctx.textAlign='left';ctx.textBaseline='top';ctx.font='600 14px Segoe UI, Arial';ctx.fillStyle=S.col;ctx.fillText(S.name,66,y+8);
       ctx.font='11px Segoe UI, Arial';ctx.fillStyle='#a8946a';ctx.fillText(cd>0?'перезарядка '+cd.toFixed(1)+' с':(window.TOUCH?'готово · кнопка ✦':'готово · E или ПКМ'),66,y+26)}
-    if(p.passive){const D=DAR[p.passive],cd=p.passive==='feniks'?Math.max(0,(p.fenixT||0)-time):0;ctx.textAlign='left';ctx.font='11px Segoe UI, Arial';ctx.fillStyle=D.col;
-      ctx.fillText('Дар: '+D.name+' ('+D.when+')'+(cd>0?' · '+Math.ceil(cd)+' с':''),26,y+44)}}
-  if(!p.alive&&!winner&&mode!=='horde'){ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='15px Segoe UI, Arial';ctx.fillStyle='#cfc6b6';
-    const S=AB[prof.ability];ctx.fillText('Способность в новой жизни: '+S.name+(prof.abOwned.length>1?(window.TOUCH?' · нажмите ✦, чтобы сменить':' · Q — сменить'):''),VW/2,VH/2+16)}
+    if(p.passive){const D=DAR[p.passive],cd=p.passive==='feniks'?Math.max(0,(p.fenixT||0)-time):0;abIcon(ctx,40,y+23,17,p.passive,p.passive==='feniks'?cd/45:0);
+      ctx.textAlign='left';ctx.textBaseline='top';ctx.font='600 14px Segoe UI, Arial';ctx.fillStyle=D.col;ctx.fillText(D.name,66,y+8);
+      ctx.font='11px Segoe UI, Arial';ctx.fillStyle='#a8946a';ctx.fillText(cd>0?'снова через '+Math.ceil(cd)+' с':'срабатывает само '+D.when,66,y+26)}}
 });
 
 // ---------- Ввод ----------
-function nextAbility(){const o=prof.abOwned,i=o.indexOf(prof.ability);prof.ability=o[(i+1)%o.length];sel.abil=prof.ability;save()}
-window.abilityButton=()=>{if(!started||paused||!player)return;if(player.alive)player.wantAbil=true;else nextAbility()};
-addEventListener('keydown',e=>{if(paused||!started||!player)return;
-  if(e.code==='KeyE')player.wantAbil=true;
-  if(e.code==='KeyQ'&&!player.alive)nextAbility()});
+window.abilityButton=()=>{if(started&&!paused&&player&&player.alive)player.wantAbil=true};
+addEventListener('keydown',e=>{if(paused||!started||!player)return;if(e.code==='KeyE')player.wantAbil=true});
 cv.addEventListener('mousedown',e=>{if(e.button===2&&started&&!paused&&player)player.wantAbil=true});
 
-// ---------- Меню: выбор способности ----------
-sel.abil=prof.ability;
-const row=document.createElement('div');row.className='row';row.innerHTML='<div class="label">Способность (в бою E или ПКМ) · новые — на складе</div><div class="choices" id="abils"></div>';
-document.getElementById('modes').parentElement.before(row);
-function menuAbils(){sel.abil=prof.abOwned.includes(sel.abil)?sel.abil:prof.ability;
-  makeChoices('abils',prof.abOwned.map(id=>({label:AB[id].name,value:id,desc:'перезарядка '+AB[id].cd+' с'})),'abil')}
-menuAbils();
+// ---------- Меню: у каждой морды подписана способность, закрытые — с замком ----------
+const _mc=makeChoices;
+makeChoices=function(id,items,key){
+  if(id==='skins')items=items.map(it=>{const ab=abOf(it.value),S=ab&&infoOf(ab);return S?Object.assign({},it,{desc:(skinOpen(it.value)?'':'🔒 ')+S.name}):it});
+  _mc(id,items,key);
+  if(id==='skins')document.querySelectorAll('#skins .choice').forEach((el,i)=>{if(!skinOpen(i)){el.style.opacity='0.5';el.title='Открыть на складе: '+infoOf(abOf(i)).price+' ◈'}});
+};
+function menuSkins(){makeChoices('skins',SKINS.filter(s=>!s.bag).map((s,i)=>({label:s.name,value:i,skin:i})),'skin')}
+facesReady.then(()=>setTimeout(menuSkins,0));
+menuSkins();
+// закрытая морда: вместо боя открывается склад на вкладке морд
+document.getElementById('start').addEventListener('click',e=>{if(skinOpen(sel.skin))return;e.stopImmediatePropagation();
+  A.openArmory();tab.onclick()},true);
 
 // ---------- Склад: вкладка «Способности» ----------
 const arm=document.getElementById('armory'),tabs=arm.querySelector('.tabs');
-const tab=document.createElement('div');tab.className='choice';tab.dataset.tab='s';tab.textContent='Способности';tabs.appendChild(tab);
+const tab=document.createElement('div');tab.className='choice';tab.dataset.tab='s';tab.textContent='Морды и способности';tabs.appendChild(tab);
 const box=document.createElement('div');box.id='aS';box.style.cssText='display:none;max-height:58vh;overflow:auto';document.getElementById('aA').after(box);
 tab.onclick=()=>{tabs.querySelectorAll('.choice').forEach(e=>e.classList.toggle('sel',e===tab));document.getElementById('aW').style.display='none';document.getElementById('aA').style.display='none';box.style.display='';renderAbil()};
 tabs.querySelectorAll('.choice').forEach(el=>{if(el!==tab)el.addEventListener('click',()=>box.style.display='none')});
 document.getElementById('armoryBtn').addEventListener('click',renderAbil);
-document.getElementById('aBack').addEventListener('click',menuAbils);
-function card(title,sub,desc,col,state,btnText,btnGold,disabled,onClick,iconKey){
+document.getElementById('aBack').addEventListener('click',menuSkins);
+function card(title,sub,desc,col,state,btnText,btnGold,disabled,onClick,iconKey,si){
   const c=document.createElement('div');c.className='card'+(state==='eq'?' eq':state==='locked'?' locked':'');
   const cnv=document.createElement('canvas');cnv.width=190;cnv.height=70;const x=cnv.getContext('2d');const bg=x.createRadialGradient(95,35,4,95,35,110);bg.addColorStop(0,'#241c2e');bg.addColorStop(1,'#0c0a10');x.fillStyle=bg;x.fillRect(0,0,190,70);
-  if(iconKey&&AB[iconKey])abIcon(x,95,35,24,iconKey,0);else{const g=x.createRadialGradient(88,28,3,95,35,26);g.addColorStop(0,'#fff');g.addColorStop(0.3,col);g.addColorStop(1,'rgba(0,0,0,0.9)');x.fillStyle=g;x.beginPath();x.arc(95,35,24,0,7);x.fill();
+  if(si!==undefined&&SKINS[si].img){const cy=8+SKINS[si].crown*24;drawMorda(x,62,cy,24,si,0,0,0,0,0,1);x.globalCompositeOperation='lighter';drawMordaGlow(x,62,cy,24,si,0,0,0,0,0,1);x.globalCompositeOperation='source-over';abIcon(x,138,35,20,iconKey,0)}
+  else if(iconKey&&infoOf(iconKey))abIcon(x,95,35,24,iconKey,0);else{const g=x.createRadialGradient(88,28,3,95,35,26);g.addColorStop(0,'#fff');g.addColorStop(0.3,col);g.addColorStop(1,'rgba(0,0,0,0.9)');x.fillStyle=g;x.beginPath();x.arc(95,35,24,0,7);x.fill();
     x.fillStyle='rgba(20,12,30,0.9)';x.font='700 22px Georgia, serif';x.textAlign='center';x.textBaseline='middle';x.fillText(title[0],95,36)}
   if(state==='locked')cnv.style.filter='grayscale(.7) brightness(.7)';
   c.appendChild(cnv);const info=document.createElement('div');info.innerHTML=`<h3 style="color:${col}">${title}</h3><div class="d">${sub}</div><div class="d" style="color:#cfc6b6">${desc}</div>`;c.appendChild(info);
   const b=document.createElement('button');b.className='sbtn'+(btnGold?' gold':'');b.textContent=btnText;b.disabled=disabled;b.onclick=onClick;c.appendChild(b);return c}
 function renderAbil(){
-  box.innerHTML='<div class="sub" style="text-align:left;margin:4px 0 8px">Активная способность включается клавишей <b>E</b> или правой кнопкой мыши (на телефоне — кнопкой ✦). Три простые даны сразу, остальные покупаются. Пока вы мертвы, способность на новую жизнь можно сменить клавишей <b>Q</b>.</div><div class="grid" id="aSa"></div>'+
-    '<div class="label" style="margin-top:14px">Дар — срабатывает сам при смерти или при рождении</div><div class="grid" id="aSd"></div>';
-  const ga=document.getElementById('aSa'),gd=document.getElementById('aSd');
-  for(const[id,S]of Object.entries(AB)){const own=prof.abOwned.includes(id),eq=prof.ability===id;
-    ga.appendChild(card(S.name,'Активная · перезарядка '+S.cd+' с'+(S.price?'':' · бесплатно'),S.desc,S.col,eq?'eq':own?'':'locked',
-      own?(eq?'Выбрана':'Выбрать'):'Купить за '+S.price+' ◈',!own,own?eq:prof.coins<S.price,
-      ()=>{if(!own){if(prof.coins<S.price)return;prof.coins-=S.price;prof.abOwned.push(id)}prof.ability=id;sel.abil=id;save();A.renderArmory();renderAbil()},id))}
-  gd.appendChild(card('Без дара','—','Ничего не срабатывает само.','#8f8573',prof.passive?'':'eq',prof.passive?'Выбрать':'Выбран',false,!prof.passive,()=>{prof.passive=null;save();renderAbil()}));
-  for(const[id,D]of Object.entries(DAR)){const own=prof.darOwned.includes(id),eq=prof.passive===id;
-    gd.appendChild(card(D.name,'Дар · '+D.when,D.desc,D.col,eq?'eq':own?'':'locked',own?(eq?'Выбран':'Выбрать'):'Купить за '+D.price+' ◈',!own,own?eq:prof.coins<D.price,
-      ()=>{if(!own){if(prof.coins<D.price)return;prof.coins-=D.price;prof.darOwned.push(id)}prof.passive=id;save();A.renderArmory();renderAbil()}))}
+  box.innerHTML='<div class="sub" style="text-align:left;margin:4px 0 8px">У каждой морды своя способность. Активная включается клавишей <b>E</b> или правой кнопкой мыши (на телефоне — кнопкой ✦), дар срабатывает сам. Три морды даны сразу, остальные открываются за монеты.</div><div class="grid" id="aSa"></div>';
+  const ga=document.getElementById('aSa');
+  SKINS.forEach((sk,si)=>{if(sk.bag)return;const id=abOf(si);if(!id)return;const S=infoOf(id),own=owns(id),eq=sel.skin===si;
+    const sub=(AB[id]?'Кнопка · перезарядка '+S.cd+' с':'Дар · срабатывает сам '+S.when)+(FREE.includes(id)?' · бесплатно':'');
+    ga.appendChild(card(sk.name+' — '+S.name,sub,S.desc,S.col,eq?'eq':own?'':'locked',
+      own?(eq?'Выбрана':'Играть этой мордой'):'Открыть за '+S.price+' ◈',!own,own?eq:prof.coins<S.price,
+      ()=>{if(!own&&!buy(id))return;sel.skin=si;A.renderArmory();renderAbil();menuSkins()},id,si))});
   document.getElementById('aCoins').textContent=prof.coins+' ◈';
 }
 // в тестовом режиме (?dev) «Открыть всё» открывает и способности
-const dAll=document.getElementById('dAll');if(dAll)dAll.addEventListener('click',()=>{prof.abOwned=Object.keys(AB);prof.darOwned=Object.keys(DAR);save();renderAbil();menuAbils()});
-const dReset=document.getElementById('dReset');if(dReset)dReset.addEventListener('click',()=>{if(prof.xp===0&&prof.coins===0){prof.abOwned=[...FREE];prof.darOwned=[];prof.ability='uskor';prof.passive=null;save()}renderAbil();menuAbils()});
+const dAll=document.getElementById('dAll');if(dAll)dAll.addEventListener('click',()=>{prof.abOwned=Object.keys(AB);prof.darOwned=Object.keys(DAR);save();renderAbil();menuSkins()});
+const dReset=document.getElementById('dReset');if(dReset)dReset.addEventListener('click',()=>{if(prof.xp===0&&prof.coins===0){prof.abOwned=[...FREE];prof.darOwned=[];save()}renderAbil();menuSkins()});
 
-window.__abil={AB,DAR,activate,spawnClone};
+window.__abil={AB,DAR,MORDA,activate,spawnClone,skinOpen};
 })();
