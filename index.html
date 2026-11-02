@@ -160,7 +160,9 @@ let stats={last:0,best:0};
 let cam={x:AW/2,y:AH/2},zoom=1,shake=0,zoomPunch=0,hitStop=0,slowT=0;
 let started=false,paused=true,locked=false;
 const mouse={x:0,y:0,down:false};const keys={dash:false};const aim={x:0,y:0};
-let sens=parseFloat(localStorage.getItem('mordy_sens'))||1;let toast={text:'',t:0};
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+let sens=parseFloat(lsGet('mordy_sens'))||1;let toast={text:'',t:0};
 const sel={skin:0,weapon:'gira',mode:'train',diff:1};
 const DIFFS=[{name:'Лёгкие',k:0.55,react:0.5},{name:'Нормальные',k:0.8,react:0.3},{name:'Злые',k:1.0,react:0.14}];
 
@@ -649,7 +651,7 @@ addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;
 cv.addEventListener('mousedown',e=>{if(e.button===0){mouse.down=true;if(started&&!paused&&!locked)lockPointer()}});
 addEventListener('mouseup',e=>{if(e.button===0)mouse.down=false});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
-function setSens(v){sens=clamp(Math.round(v*20)/20,0.2,3);localStorage.setItem('mordy_sens',sens);document.getElementById('sens').value=sens;document.getElementById('sensv').textContent=sens.toFixed(2);toast={text:'Чувствительность мыши: '+sens.toFixed(2),t:1.5}}
+function setSens(v){sens=clamp(Math.round(v*20)/20,0.2,3);lsSet('mordy_sens',sens);document.getElementById('sens').value=sens;document.getElementById('sensv').textContent=sens.toFixed(2);toast={text:'Чувствительность мыши: '+sens.toFixed(2),t:1.5}}
 addEventListener('keydown',e=>{
   if(e.code==='Escape'){if(started&&!paused)showMenu();return}
   if(paused)return;
@@ -682,7 +684,7 @@ makeChoices('weapons',Object.entries(WEAPONS).map(([k,w])=>({label:w.name,value:
 makeChoices('modes',[{label:'Тренировка',value:'train',desc:'манекены, просто полетать'},{label:'Дуэль 1 × 1',value:'duel',desc:'против бота, до 5'},{label:'Команды 4 × 4',value:'team',desc:'с ботами, до 15'}],'mode');
 makeChoices('diffs',DIFFS.map((d,i)=>({label:d.name,value:i})),'diff');
 const sensEl=document.getElementById('sens');sensEl.value=sens;document.getElementById('sensv').textContent=sens.toFixed(2);
-sensEl.oninput=()=>{sens=parseFloat(sensEl.value);localStorage.setItem('mordy_sens',sens);document.getElementById('sensv').textContent=sens.toFixed(2)};
+sensEl.oninput=()=>{sens=parseFloat(sensEl.value);lsSet('mordy_sens',sens);document.getElementById('sensv').textContent=sens.toFixed(2)};
 document.getElementById('start').onclick=()=>{initAudio();if(AC&&AC.state==='suspended')AC.resume();startGame();hideMenu()};
 document.getElementById('resume').onclick=()=>hideMenu();
 
