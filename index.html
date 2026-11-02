@@ -55,7 +55,7 @@ b{color:#e9d8ae;font-weight:600}
 <script>
 'use strict';
 // Версию повышать при каждом изменении игры и записывать в CHANGELOG.md
-const VERSION='1.7';
+const VERSION='1.8';
 // Набор оружия на клавишах 1/2/3 — его задаёт склад оружия (armory.js)
 function LOADOUT(){return window.getLoadout?window.getLoadout():['gira','shar','posoh']}
 document.title='Spiral Impact v'+VERSION;document.getElementById('ver').textContent='v'+VERSION;
@@ -158,9 +158,9 @@ function genIslands(){const W=2048,H=1152,cv=document.createElement('canvas');cv
 
 // Арены: фон, общий свет (ambient), факелы. Фон — «небо» за ареной с лёгким параллаксом.
 const ARENAS=[
-  {id:'zal',name:'Каменный зал',desc:'факелы и руны',ambient:'rgb(96,88,120)',torches:true},
-  {id:'dyuny',name:'Закатные дюны',desc:'пустыня под кольцами планеты',ambient:'rgb(200,176,160)',dim:0.18,gen:genDunes},
-  {id:'ostrova',name:'Небесные острова',desc:'облака и летающие скалы',ambient:'rgb(206,210,222)',dim:0.18,gen:genIslands}
+  {id:'zal',name:'Каменный зал',desc:'факелы и руны',ambient:'rgb(96,88,120)',torches:true,rim:'255,170,100',grade:'rgba(255,140,70,0.16)'},
+  {id:'dyuny',name:'Закатные дюны',desc:'пустыня под кольцами планеты',ambient:'rgb(200,176,160)',dim:0.18,gen:genDunes,rim:'255,200,150',grade:'rgba(255,160,100,0.18)'},
+  {id:'ostrova',name:'Небесные острова',desc:'облака и летающие скалы',ambient:'rgb(206,210,222)',dim:0.18,gen:genIslands,rim:'225,238,255',grade:'rgba(140,175,255,0.14)'}
 ];
 let ARENA=ARENAS[0];
 const TEAMC={blue:'#5aa8ff',red:'#ff5262'};
@@ -546,6 +546,13 @@ function step(){
   if(mode==='horde'&&window.hordeStep)hordeStep();
   if(winner){winT-=DT;if(winT<=0)resetMatch()}
 }
+// ---------- Спрайты частиц: мягкие круги вместо квадратиков ----------
+const PSPR={};
+function softSpr(rgb,kind){const key=kind+rgb;if(PSPR[key])return PSPR[key];const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');
+  const g=x.createRadialGradient(32,32,0,32,32,32);
+  if(kind==='glow'){g.addColorStop(0,'rgba(255,255,240,1)');g.addColorStop(0.18,`rgba(${rgb},0.95)`);g.addColorStop(0.5,`rgba(${rgb},0.25)`);g.addColorStop(1,`rgba(${rgb},0)`)}
+  else{g.addColorStop(0,`rgba(${rgb},0.55)`);g.addColorStop(0.55,`rgba(${rgb},0.28)`);g.addColorStop(1,`rgba(${rgb},0)`)}
+  x.fillStyle=g;x.fillRect(0,0,64,64);return PSPR[key]=c}
 function addP(o){parts.push(Object.assign({vx:0,vy:0,drag:0.97,g:0,grow:0,life:0.5,max:0.5,size:3},o))}
 const SPARKC=['255,246,214','255,200,110','255,150,60'];
 function sparks(x,y,n,sp){for(let i=0;i<n;i++){const a=Math.random()*6.283,s=rnd(0.25,1)*sp;addP({type:'spark',x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rnd(0.2,0.5),max:0.5,size:rnd(1,2.2),g:900,drag:0.985,rgb:pick(SPARKC)})}}
@@ -749,6 +756,11 @@ function drawMorda(c,x,y,r,si,lx,ly,hurt,tilt,squash,alpha){
   if(hurt>0){c.globalAlpha=alpha*clamp(hurt*1.6,0,0.5);drawFace(c,S,S.hurtImg)}
   c.restore();
 }
+// контровой свет: тонкий край силуэта сверху-слева цветом света арены (кешируется по голове и цвету)
+const RIM={};
+function rimSpr(S,rgb){const key=S.file+rgb;if(RIM[key])return RIM[key];if(!S.img)return null;const c=document.createElement('canvas');c.width=S.img.width;c.height=S.img.height;const x=c.getContext('2d');
+  x.drawImage(S.img,0,0);x.globalCompositeOperation='destination-out';x.drawImage(S.img,7,9);x.globalCompositeOperation='source-in';x.fillStyle=`rgb(${rgb})`;x.fillRect(0,0,c.width,c.height);return RIM[key]=c}
+function drawMordaRim(c,x,y,r,si,tilt,squash,alpha){const S=SKINS[si];if(!S.img||!ARENA.rim)return;const sp=rimSpr(S,ARENA.rim);if(!sp)return;c.save();faceTf(c,S,x,y,r,tilt,squash);c.globalAlpha=alpha*0.55;c.drawImage(sp,0,0);c.restore()}
 // свечение морды (рисовать с globalCompositeOperation='lighter')
 function drawMordaGlow(c,x,y,r,si,lx,ly,hurt,tilt,squash,alpha){
   const S=SKINS[si];if(!S.gimg)return;c.save();faceTf(c,S,x,y,r,tilt,squash);
@@ -771,20 +783,24 @@ function axeBlade(c,r,hi){const p=new Path2D(),sw=r*0.35; // sw — концы �
 function drawSekiraChain(f){const ch=f.chain;let k=0;
   for(let i=0;i<ch.length-1;i++){const a=ch[i],b=ch[i+1],dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy),n=Math.max(1,Math.round(L/8)),ang=Math.atan2(dy,dx);
     for(let j=0;j<n;j++,k++){const t=(j+0.5)/n;ctx.save();ctx.translate(a.x+dx*t,a.y+dy*t);ctx.rotate(ang-Math.PI/2);axeBlade(ctx,6.2);ctx.restore()}}}
+// звенья цепи — заранее отрисованные спрайты (металл с бликом и тенью), поворачиваются по направлению цепи
+function linkSprites(brass){const S=4,make=(w,h,fn)=>{const c=document.createElement('canvas');c.width=w*S;c.height=h*S;const x=c.getContext('2d');x.scale(S,S);x.translate(w/2,h/2);fn(x);return c};
+  const C=brass?['#2a1806','#8a5a20','#ffd890','#c08a40']:['#0c0d11','#4a4f5c','#eef2f8','#9aa1b2'];
+  const face=make(18,12,x=>{x.lineWidth=3.2;x.strokeStyle='rgba(0,0,0,0.5)';x.beginPath();x.ellipse(0.6,0.8,6.4,3.9,0,0,7);x.stroke();
+    const g=x.createLinearGradient(0,-4,0,4);g.addColorStop(0,C[3]);g.addColorStop(0.35,C[2]);g.addColorStop(0.6,C[1]);g.addColorStop(1,C[0]);x.strokeStyle=g;x.lineWidth=2.8;x.beginPath();x.ellipse(0,0,6.2,3.8,0,0,7);x.stroke();
+    x.strokeStyle='rgba(255,255,255,0.75)';x.lineWidth=0.8;x.beginPath();x.ellipse(0,-0.4,5.6,3.1,0,Math.PI*1.15,Math.PI*1.75);x.stroke()});
+  const edge=make(18,8,x=>{x.fillStyle='rgba(0,0,0,0.45)';x.fillRect(-6.6,-1.4,13.4,4.2);const g=x.createLinearGradient(0,-2,0,2);g.addColorStop(0,C[2]);g.addColorStop(0.45,C[3]);g.addColorStop(1,C[0]);x.fillStyle=g;
+    x.beginPath();x.moveTo(-6.5,-1.8);x.lineTo(6.5,-1.8);x.quadraticCurveTo(7.6,0,6.5,1.8);x.lineTo(-6.5,1.8);x.quadraticCurveTo(-7.6,0,-6.5,-1.8);x.fill();x.fillStyle='rgba(255,255,255,0.6)';x.fillRect(-5,-1.4,10,0.6)});
+  return{face,edge}}
+const LINKS={steel:linkSprites(false),brass:linkSprites(true)};
 function drawChain(f){
   if(f.weaponId==='sekira')return drawSekiraChain(f);
-  const ch=f.chain,brass=f.weaponId==='posoh',dark=brass?'#3a2610':'#1c1e25',lite=brass?'#d8a650':'#9aa1b2';
+  const ch=f.chain,L_=LINKS[f.weaponId==='posoh'?'brass':'steel'];
   let k=0;
   for(let i=0;i<ch.length-1;i++){
-    const a=ch[i],b=ch[i+1],dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy),n=Math.max(1,Math.round(L/8)),ang=Math.atan2(dy,dx),cs=Math.cos(ang),sn=Math.sin(ang);
-    for(let j=0;j<n;j++,k++){
-      const t=(j+0.5)/n;
-      const x=a.x+dx*t,y=a.y+dy*t;
-      ctx.save();ctx.translate(x,y);ctx.rotate(ang);
-      if(k%2===0){ctx.beginPath();ctx.ellipse(0,0,6.2,3.8,0,0,7);ctx.lineWidth=2.8;ctx.strokeStyle=dark;ctx.stroke();ctx.beginPath();ctx.ellipse(0,-0.5,5.6,3.2,0,Math.PI*1.1,Math.PI*1.9);ctx.lineWidth=1.1;ctx.strokeStyle=lite;ctx.stroke()}
-      else{ctx.fillStyle=dark;ctx.fillRect(-6.5,-1.8,13,3.6);ctx.fillStyle=lite;ctx.fillRect(-5.5,-1.5,11,1.1)}
-      ctx.restore();
-    }
+    const a=ch[i],b=ch[i+1],dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy),n=Math.max(1,Math.round(L/8)),ang=Math.atan2(dy,dx);
+    for(let j=0;j<n;j++,k++){const t=(j+0.5)/n,sp=k%2?L_.edge:L_.face,w=18,h=k%2?8:12;
+      ctx.save();ctx.translate(a.x+dx*t,a.y+dy*t);ctx.rotate(ang);ctx.drawImage(sp,-w/2,-h/2,w,h);ctx.restore()}
   }
 }
 function headDanger(f){const[vx,vy]=vel(f.head);return clamp((Math.hypot(vx,vy)-f.W.thr)/1200,0,1)}
@@ -890,9 +906,9 @@ function render(dt){
   if(mode==='horde'&&window.hordeDraw)hordeDraw(0);
   for(const p of projs){const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);g.addColorStop(0,'#3a1a0a');g.addColorStop(1,'#120604');ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,p.r*0.8,0,7);ctx.fill()}
   for(const p of parts){const al=clamp(p.life/p.max,0,1);
-    if(p.type==='smoke'){ctx.fillStyle=`rgba(${p.color},${al*0.35})`;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,7);ctx.fill()}
+    if(p.type==='smoke'){const sz=p.size*2.2;ctx.globalAlpha=al*0.8;ctx.drawImage(softSpr(p.color,'smoke'),p.x-sz/2,p.y-sz/2,sz,sz);ctx.globalAlpha=1}
     else if(p.type==='drop'){ctx.globalAlpha=al;ctx.fillStyle=p.color;ctx.beginPath();ctx.ellipse(p.x,p.y,p.size,p.size*0.75,Math.atan2(p.vy,p.vx),0,7);ctx.fill();ctx.globalAlpha=1}
-    else if(p.type==='chunk'){ctx.globalAlpha=al;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a||0);ctx.fillStyle=p.color;ctx.fillRect(-p.size,-p.size*0.6,p.size*2,p.size*1.2);ctx.restore();ctx.globalAlpha=1}}
+    else if(p.type==='chunk'){ctx.globalAlpha=al;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a||0);const z=p.size;ctx.fillStyle=p.color;ctx.beginPath();ctx.moveTo(-z,-z*0.3);ctx.lineTo(-z*0.2,-z*0.8);ctx.lineTo(z,-z*0.2);ctx.lineTo(z*0.4,z*0.7);ctx.lineTo(-z*0.6,z*0.5);ctx.closePath();ctx.fill();ctx.fillStyle='rgba(255,255,255,0.18)';ctx.beginPath();ctx.moveTo(-z,-z*0.3);ctx.lineTo(-z*0.2,-z*0.8);ctx.lineTo(z*0.1,-z*0.3);ctx.closePath();ctx.fill();ctx.restore();ctx.globalAlpha=1}}
   // освещение
   lights=[];
   if(ARENA.torches)for(const t of TORCHES){const fl=0.85+0.1*Math.sin(rt*13+t.x)+0.07*Math.sin(rt*29+t.y);addLight(t.x,t.y-20,520*fl,'255,150,70',0.75*fl)}
@@ -910,17 +926,18 @@ function render(dt){
   if(ARENA.torches)for(const t of TORCHES){const fl=0.85+0.15*Math.sin(rt*17+t.x)+0.1*Math.sin(rt*31+t.y);
     for(const[rad,col,dy]of[[34*fl,'255,110,30,0.5',-22],[20*fl,'255,180,70,0.8',-26],[9,'255,240,200,0.9',-22]]){const g=ctx.createRadialGradient(t.x,t.y+dy,0,t.x,t.y+dy,rad);g.addColorStop(0,`rgba(${col})`);g.addColorStop(1,'rgba(255,80,0,0)');ctx.fillStyle=g;ctx.fillRect(t.x-rad,t.y+dy-rad*1.4,rad*2,rad*2.4)}}
   for(const p of PILLARS){ctx.save();ctx.translate(p.x,p.y);ctx.strokeStyle=`rgba(190,130,255,${0.5+0.3*Math.sin(rt*2+p.x)})`;ctx.lineWidth=1.6;for(const cr of p.cracks){ctx.beginPath();cr.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));ctx.stroke()}ctx.restore()}
-  for(let i=0;i<200;i++){const mx=((i*397)%AW)+Math.sin(rt*0.3+i)*40,my=(((i*733)%AH)-rt*(6+(i%4)*4)%AH+AH)%AH;ctx.fillStyle='rgba(220,200,255,0.10)';ctx.fillRect(mx,my,2,2)}
+  for(let i=0;i<200;i++){const mx=((i*397)%AW)+Math.sin(rt*0.3+i)*40,my=(((i*733)%AH)-rt*(6+(i%4)*4)%AH+AH)%AH;ctx.globalAlpha=0.35;ctx.drawImage(softSpr('220,200,255','glow'),mx-4,my-4,8,8);ctx.globalAlpha=1}
   for(const f of alive){
     if(f.head){drawTrail(f);drawHeadGlow(f)}
+    drawMordaRim(ctx,f.body.x,f.body.y,f.body.r,f.skin,f.tilt,f.squash,(f.inv>0&&((time*10|0)%2===0))?0.45:1);
     drawMordaGlow(ctx,f.body.x,f.body.y,f.body.r,f.skin,f.look[0],f.look[1],f.hurt,f.tilt,f.squash,(f.inv>0&&((time*10|0)%2===0))?0.45:1);
     const b=f.body;ctx.strokeStyle=`rgba(${hexRgb(TEAMC[f.team])},0.75)`;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(b.x,b.y,b.r*1.62,Math.PI*0.25,Math.PI*0.75);ctx.stroke();
   }
   for(const p of projs){const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*2.6);g.addColorStop(0,'rgba(255,250,220,1)');g.addColorStop(0.25,'rgba(255,190,80,0.9)');g.addColorStop(0.6,'rgba(255,90,20,0.35)');g.addColorStop(1,'rgba(255,40,0,0)');ctx.fillStyle=g;ctx.fillRect(p.x-p.r*2.6,p.y-p.r*2.6,p.r*5.2,p.r*5.2);
     ctx.strokeStyle=`rgba(${hexRgb(TEAMC[p.team])},0.6)`;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(p.x,p.y,p.r*1.3,0,7);ctx.stroke()}
   for(const p of parts){const al=clamp(p.life/p.max,0,1);
-    if(p.type==='spark'){ctx.strokeStyle=`rgba(${p.rgb},${al})`;ctx.lineWidth=p.size;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*0.022,p.y-p.vy*0.022);ctx.stroke()}
-    else if(p.type==='ember'){ctx.fillStyle=`rgba(${p.rgb},${al})`;ctx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size)}
+    if(p.type==='spark'){ctx.lineCap='round';ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-p.vx*0.022,p.y-p.vy*0.022);ctx.strokeStyle=`rgba(${p.rgb},${al*0.25})`;ctx.lineWidth=p.size*4;ctx.stroke();ctx.strokeStyle=`rgba(${p.rgb},${al})`;ctx.lineWidth=p.size;ctx.stroke();ctx.strokeStyle=`rgba(255,255,240,${al*0.8})`;ctx.lineWidth=p.size*0.4;ctx.stroke()}
+    else if(p.type==='ember'){const sz=p.size*5;ctx.globalAlpha=al;ctx.drawImage(softSpr(p.rgb,'glow'),p.x-sz/2,p.y-sz/2,sz,sz);ctx.globalAlpha=1}
     else if(p.type==='flash'){const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size);g.addColorStop(0,`rgba(${p.rgb},${al})`);g.addColorStop(1,`rgba(${p.rgb},0)`);ctx.fillStyle=g;ctx.fillRect(p.x-p.size,p.y-p.size,p.size*2,p.size*2)}
     else if(p.type==='ring'){ctx.strokeStyle=`rgba(${p.rgb},${al*0.7})`;ctx.lineWidth=3*al+0.5;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,7);ctx.stroke()}}
   drawTraps(1);
@@ -945,7 +962,9 @@ function render(dt){
   ctx.textBaseline='middle';
   for(const n of nums){ctx.globalAlpha=clamp(n.life,0,1);ctx.font=`700 ${n.size|0}px Segoe UI, Arial`;ctx.lineWidth=4;ctx.strokeStyle='rgba(0,0,0,0.85)';ctx.strokeText(n.text,n.x,n.y);ctx.fillStyle=n.color;ctx.fillText(n.text,n.x,n.y)}
   ctx.globalAlpha=1;
-  ctx.setTransform(DPR,0,0,DPR,0,0);ctx.drawImage(vigCv,0,0,VW,VH);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  if(ARENA.grade){ctx.globalCompositeOperation='soft-light';ctx.fillStyle=ARENA.grade;ctx.fillRect(0,0,VW,VH);ctx.globalCompositeOperation='source-over'} // цветокоррекция сцены
+  ctx.drawImage(vigCv,0,0,VW,VH);
   drawHUD();
 }
 function drawMinimap(){
