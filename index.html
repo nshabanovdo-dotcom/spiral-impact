@@ -55,7 +55,7 @@ b{color:#e9d8ae;font-weight:600}
 <script>
 'use strict';
 // Версию повышать при каждом изменении игры и записывать в CHANGELOG.md
-const VERSION='1.2';
+const VERSION='1.3';
 // Набор оружия на клавишах 1/2/3 — его задаёт склад оружия (armory.js)
 function LOADOUT(){return window.getLoadout?window.getLoadout():['gira','shar','posoh']}
 document.title='Spiral Impact v'+VERSION;document.getElementById('ver').textContent='v'+VERSION;
@@ -259,7 +259,7 @@ function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 let sens=parseFloat(lsGet('mordy_sens'))||1;let toast={text:'',t:0};
 const sel={skin:0,weapon:'gira',mode:'train',diff:1,arena:'random'};
-const DIFFS=[{name:'Лёгкие',k:0.55,react:0.5},{name:'Нормальные',k:0.8,react:0.3},{name:'Злые',k:1.0,react:0.14}];
+const DIFFS=[{name:'Лёгкие',k:0.55,react:0.5},{name:'Нормальные',k:0.85,react:0.28},{name:'Злые',k:1.0,react:0.14}];
 
 function spawnPoint(f){
   if(f.anchor)return f.anchor;
@@ -292,28 +292,72 @@ function startGame(){
 function resetMatch(){score={blue:0,red:0};winner=null;projs=[];for(const f of fighters){f.kills=f.deaths=0;f.alive=false}for(const f of fighters)respawn(f)}
 
 // ---------- Управление ----------
+// ИИ бота. Управляет так же, как игрок: «курсор» (точка aim) и пружина к нему.
+// 1) Разгон: курсор крутится по кругу — оружие раскручивается, пока скорость головы не превысит порог урона.
+// 2) Атака: бот ставит тело так, чтобы цель оказалась на пути своего оружия чуть впереди по ходу вращения.
+// 3) Уклонение: быстрое вражеское оружие летит на бота — отступить вбок и/или рывок.
+// 4) Выбивание: если импульс своего оружия заметно больше — целиться в оружие врага.
+// Характеры: агрессор (держится вплотную), осторожный (ударил — отошёл), стрелок (посох, держит дистанцию).
+function nearestEnemy(f){const b=f.body;let best=null,bd=1e18;
+  for(const o of fighters)if(o.alive&&o.team!==f.team&&o.kind!=='bag'){const d=(o.body.x-b.x)**2+(o.body.y-b.y)**2;if(d<bd){bd=d;best=o}}return best}
 function botThink(f){
-  const b=f.body,ai=f.ai,D=DIFFS[f.diff];
-  ai.t-=DT;ai.dashT-=DT;
-  if(ai.t<=0){
-    ai.t=D.react*rnd(0.7,1.3);let best=null,bd=1e9;
-    for(const o of fighters)if(o.alive&&o.team!==f.team){const d=Math.hypot(o.body.x-b.x,o.body.y-b.y);if(d<bd){bd=d;best=o}}
-    ai.target=best;if(Math.random()<0.07)ai.sign*=-1;
-  }
+  const b=f.body,ai=f.ai,D=DIFFS[f.diff],w=f.W;
+  if(!ai.style)ai.style=w&&w.type==='ranged'?'shoot':Math.random()<0.5?'aggr':'care';
+  if(ai.th===undefined){ai.th=Math.random()*6.283;ai.ox=b.x;ai.oy=b.y;ai.evT=0;ai.retreat=0}
+  ai.t-=DT;ai.dashT-=DT;ai.evT-=DT;ai.retreat-=DT;
+  if(ai.t<=0||!ai.target||!ai.target.alive){ai.t=D.react*rnd(0.7,1.3);ai.target=nearestEnemy(f);if(Math.random()<0.05)ai.sign*=-1}
   const t=ai.target;
-  if(!t||!t.alive){f.ax=(AW/2-b.x)*2;f.ay=(AH/2-b.y)*2;return}
-  const tb=t.body;let dx=b.x-tb.x,dy=b.y-tb.y;const d=Math.hypot(dx,dy)||1;dx/=d;dy/=d;
-  const ranged=f.W&&f.W.type==='ranged';
-  const R=ranged?440:f.reach*0.75,ang=ai.sign*(ranged?0.45:1.0),c=Math.cos(ang),s=Math.sin(ang);
-  let gx=clamp(tb.x+(dx*c-dy*s)*R,150,AW-150),gy=clamp(tb.y+(dx*s+dy*c)*R,150,AH-150);
-  let ax=gx-b.x,ay=gy-b.y;const L=Math.hypot(ax,ay),maxL=MAXOFF*D.k;
-  if(L>maxL){ax*=maxL/L;ay*=maxL/L}
-  f.ax=ax*ACC;f.ay=ay*ACC;f.look=[-dx,-dy];
-  if(ranged&&f.head){
-    const[hvx,hvy]=vel(f.head),hs=Math.hypot(hvx,hvy),ex=tb.x-f.head.x,ey=tb.y-f.head.y,el=Math.hypot(ex,ey)||1;
-    if(hs>350&&el<950&&(hvx*ex+hvy*ey)/(hs*el)>0.85)f.wantFire=true;
+  const[vx,vy]=vel(b);
+  let cx,cy; // центр круга, по которому ходит курсор
+  if(!t){cx=AW/2;cy=AH/2}
+  else{
+    const tb=t.body,dx=tb.x-b.x,dy=tb.y-b.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d;
+    const hs=f.head?Math.hypot(...vel(f.head)):0,thr=w?w.thr:400;
+    // атака «липкая»: вход при скорости выше порога ×1.25, выход ниже ×0.85 или через 2,5 с
+    if(!ai.atkOn&&hs>thr*1.25){ai.atkOn=true;ai.atkT=2.5}else if(ai.atkOn&&(hs<thr*0.85||(ai.atkT-=DT)<=0))ai.atkOn=false;
+    const ready=ai.atkOn;
+    const reach=f.reach||120;
+    // уклонение от быстрого вражеского оружия
+    let danger=false;
+    if(t.head&&t.W){const[tvx,tvy]=vel(t.head),ts=Math.hypot(tvx,tvy),ex=b.x-t.head.x,ey=b.y-t.head.y,ed=Math.hypot(ex,ey)||1;
+      if(ts>t.W.thr*1.05&&ed<reach*1.1+60&&(tvx*ex+tvy*ey)/(ts*ed)>0.3)danger=true}
+    if(danger&&ai.evT<=0&&Math.random()<DT/Math.max(0.05,D.react)*(ai.style==='aggr'?0.4:0.9)){ai.evT=0.5;ai.evx=-uy*ai.sign-ux*0.6;ai.evy=ux*ai.sign-uy*0.6;
+      if(f.dashCd<=0&&Math.random()<0.25+0.25*f.diff){f.wantDash=true}}
+    // цель удара: тело врага или его оружие (выбивание)
+    let tx=tb.x,ty=tb.y;
+    if(t.head&&f.head&&w&&t.W&&w.type!=='ranged'){const ts=Math.hypot(...vel(t.head));if(w.mass*hs>t.W.mass*ts*1.6&&hs>700){tx=t.head.x;ty=t.head.y}}
+    const Rh=reach*0.74; // на таком расстоянии от тела летает раскрученное оружие
+    let want; // желаемое расстояние от центра круга до цели
+    if(!w)want=500; // без оружия — держаться подальше
+    else if(ai.style==='shoot')want=430;
+    else if(ai.retreat>0)want=reach*2.2;
+    else want=reach*(ai.style==='aggr'?1.3:1.7);
+    ai.atk=ready&&w&&w.type!=='ranged'&&ai.retreat<=0;
+    cx=tx-ux*want;cy=ty-uy*want;
+    // прицельный удар: ставим тело так, чтобы цель была на пути оружия чуть впереди по ходу вращения
+    if(ai.atk&&f.head){const h=f.head,rx=h.x-b.x,ry=h.y-b.y,r2=rx*rx+ry*ry+1,[hvx,hvy]=vel(h),om=(rx*(hvy-vy)-ry*(hvx-vx))/r2;
+      const phi=Math.atan2(ry,rx)+Math.sign(om||1)*1.2,R=Math.max(Math.sqrt(r2),Rh);cx=tx-Math.cos(phi)*R;cy=ty-Math.sin(phi)*R;
+      // не влетать телом в цель: если ближе 0,7 вылета — точка отводится наружу
+      if(d<Rh*0.7){cx=tx-ux*Rh;cy=ty-uy*Rh}}
+    if(ai.evT>0){cx=b.x+ai.evx*300;cy=b.y+ai.evy*300}
+    // стрелок: стреляет, когда голова посоха летит в сторону цели
+    if(w&&w.type==='ranged'&&f.head){const[hvx,hvy]=vel(f.head),ex=tb.x-f.head.x,ey=tb.y-f.head.y,el=Math.hypot(ex,ey)||1;
+      if(hs>350&&el<1000&&(hvx*ex+hvy*ey)/(hs*el)>0.975)f.wantFire=true}
+    // осторожный после попадания отходит
+    if(ai.style==='care'&&time-(f.lastHitDealt||-9)<0.1)ai.retreat=0.9;
+    // рывок для сближения, когда оружие разогнано
+    if(ready&&ai.dashT<=0&&d<reach*2.2&&d>reach*0.6&&ai.style!=='shoot'&&f.diff>0){ai.dashT=rnd(2,4)/f.diff;f.wantDash=true}
+    f.look=[ux,uy];
   }
-  if(f.diff>0&&ai.dashT<=0&&d<f.reach*1.6){ai.dashT=rnd(2.5,6)/f.diff;f.wantDash=true}
+  // курсор крутится вокруг центра: радиус и скорость вращения разгоняют оружие
+  const rho=!w?30:w.type==='ranged'?75:ai.atk?125:95,om=(ai.atk?9:7.5+1.5*f.diff)*ai.sign;
+  ai.th+=om*DT;
+  // центр плавно догоняет желаемую точку (реакция зависит от сложности)
+  const kc=1-Math.exp(-DT*(ai.atk?14+6*f.diff:3+3*f.diff));ai.ox+=(clamp(cx,150,AW-150)-ai.ox)*kc;ai.oy+=(clamp(cy,150,AH-150)-ai.oy)*kc;
+  let px=ai.ox+Math.cos(ai.th)*rho,py=ai.oy+Math.sin(ai.th)*rho;
+  let ox=px-b.x,oy=py-b.y;const L=Math.hypot(ox,oy);if(L>LEASH){ox*=LEASH/L;oy*=LEASH/L}
+  const kd=KD;let ax=ox*KP-vx*kd,ay=oy*KP-vy*kd;const A=Math.hypot(ax,ay),amax=AMAX*D.k;if(A>amax){ax*=amax/A;ay*=amax/A}
+  f.ax=ax;f.ay=ay;
 }
 function control(f){
   f.ax=0;f.ay=0;f.wantFire=false;
@@ -340,6 +384,9 @@ function control(f){
 function fire(f){
   const w=f.W,h=f.head;const[vx,vy]=vel(h);let s=Math.hypot(vx,vy),dx,dy;
   if(s>150){dx=vx/s;dy=vy/s}else{const L=Math.hypot(f.ax,f.ay);if(L<1){dx=1;dy=0}else{dx=f.ax/L;dy=f.ay/L}s=0}
+  // бот доводит выстрел к цели на несколько градусов (точность зависит от сложности)
+  if(f.kind==='bot'&&f.ai.target&&f.ai.target.alive){const tb=f.ai.target.body,ta=Math.atan2(tb.y-h.y,tb.x-h.x),a=Math.atan2(dy,dx);let da=Math.atan2(Math.sin(ta-a),Math.cos(ta-a));
+    const mx=[3,6,10][f.diff]*Math.PI/180;da=clamp(da,-mx,mx)+rnd(-1,1)*(2-f.diff)*Math.PI/180;dx=Math.cos(a+da);dy=Math.sin(a+da)}
   const sp=w.projSpeed+Math.min(s,1600)*0.5;
   projs.push({x:h.x+dx*(h.r+6),y:h.y+dy*(h.r+6),vx:dx*sp,vy:dy*sp,team:f.team,owner:f,life:1.8,r:9,dmg:w.projDmg});
   f.energy-=w.cost;f.fireCd=w.rate;setVel(h,vx-dx*120,vy-dy*120);
@@ -348,12 +395,15 @@ function fire(f){
 }
 
 // ---------- Бой ----------
+function ownSpeed(h,b){const[vx,vy]=vel(h),dx=b.x-h.x,dy=b.y-h.y,d=Math.hypot(dx,dy)||1;return Math.max(0,(vx*dx+vy*dy)/d)}
 function interact(A,B){
   if(!A.alive||!B.alive)return;
   collide(A.body,B.body,0.5);
   const en=A.team!==B.team;
-  if(A.head){const s=collide(A.head,B.body,0.55);if(s>0&&en)hit(A,B,s,A.head)}
-  if(B.head&&A.alive&&B.alive){const s=collide(B.head,A.body,0.55);if(s>0&&en)hit(B,A,s,B.head)}
+  // сила удара — собственная скорость оружия в сторону цели (не скорость сближения):
+  // висящее оружие не ранит того, кто на него налетел
+  if(A.head){const o=ownSpeed(A.head,B.body),s=collide(A.head,B.body,0.55);if(s>0&&en)hit(A,B,Math.min(s,o),A.head)}
+  if(B.head&&A.alive&&B.alive){const o=ownSpeed(B.head,A.body),s=collide(B.head,A.body,0.55);if(s>0&&en)hit(B,A,Math.min(s,o),B.head)}
   if(A.head&&B.head&&A.alive&&B.alive){const s=collide(A.head,B.head,0.8);
     if(s>250){const x=(A.head.x+B.head.x)/2,y=(A.head.y+B.head.y)/2;sparks(x,y,8+s/120|0,s*0.6);addP({type:'flash',x,y,life:0.12,max:0.12,size:30+s/40,rgb:'255,240,200'});sfx('clash',Math.min(1,s/1500));
       if((A===player||B===player)&&s>700)hitStop=Math.max(hitStop,0.03)}}
@@ -363,7 +413,7 @@ function hit(att,vic,s,head){
   if(time<(att.hitCd[vic.id]||0))return;
   const x=(head.x+vic.body.x)/2,y=(head.y+vic.body.y)/2;
   if(s<w.thr){if(s>150){sparks(x,y,3,150);sfx('thud',s/1200)}return}
-  att.hitCd[vic.id]=time+0.22;
+  att.hitCd[vic.id]=time+0.22;att.lastHitDealt=time;
   const dmg=Math.min(80,(s-w.thr)*w.mass*w.k);
   const dx=vic.body.x-head.x,dy=vic.body.y-head.y,dl=Math.hypot(dx,dy)||1;const[bvx,bvy]=vel(vic.body);
   setVel(vic.body,bvx+dx/dl*dmg*9,bvy+dy/dl*dmg*9);
