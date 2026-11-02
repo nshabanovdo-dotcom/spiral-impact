@@ -8,9 +8,8 @@ const TOUCH=matchMedia('(pointer: coarse)').matches||/[?&]touch\b/.test(location
 window.TOUCH=TOUCH;
 if(!TOUCH)return;
 
-// интерфейс мельче на маленьком экране, а мир крупнее, чем на компьютере
-window.uiScale=()=>clamp(Math.min(innerWidth/1000,innerHeight/500),0.6,1);
-window.zoomMul=(prev=>()=>{const base=clamp(Math.min(VW/1600,VH/1000),0.4,1.4);return(prev?prev():1)*Math.max(1,(VH/620)/base)})(window.zoomMul);
+// интерфейс и мир на телефоне в тех же пропорциях, что на компьютере, только мельче
+window.uiScale=()=>clamp(Math.min(innerWidth/1200,innerHeight/620),0.5,1);
 resize();
 
 lockPointer=function(){};
@@ -21,14 +20,15 @@ hideMenu=function(){_hide();locked=true};
 const css=document.createElement('style');css.textContent=`
 #tui{position:fixed;inset:0;pointer-events:none;z-index:3;display:none}
 #tui .tb{position:absolute;pointer-events:auto;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;
-  background:rgba(20,14,28,.5);border:2px solid rgba(212,178,106,.65);color:#f2ead6;font:600 12px "Segoe UI",Arial,sans-serif;
+  background:rgba(20,14,28,.5);border:2px solid rgba(212,178,106,.65);color:#f2ead6;font:600 10px "Segoe UI",Arial,sans-serif;
   touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;text-shadow:0 1px 2px #000;box-shadow:0 0 14px rgba(0,0,0,.6)}
 #tui .tb.on{background:rgba(212,178,106,.35)}
-#tui .tb b{font-size:22px;line-height:1;color:inherit}
-#tDash{right:max(18px,env(safe-area-inset-right));bottom:22px;width:92px;height:92px}
-#tAbil{right:calc(max(18px,env(safe-area-inset-right)) + 104px);bottom:30px;width:72px;height:72px}
-#tFire{right:calc(max(18px,env(safe-area-inset-right)) + 12px);bottom:128px;width:68px;height:68px;border-color:rgba(255,138,42,.8)}
-#tMenu{right:max(8px,env(safe-area-inset-right));top:8px;width:42px;height:42px;font-size:15px}
+#tui .tb b{font-size:18px;line-height:1;color:inherit}
+#tDash{right:max(14px,env(safe-area-inset-right));bottom:16px;width:70px;height:70px}
+#tAbil{right:calc(max(14px,env(safe-area-inset-right)) + 80px);bottom:20px;width:56px;height:56px}
+#tFire{right:calc(max(14px,env(safe-area-inset-right)) + 9px);bottom:96px;width:52px;height:52px;border-color:rgba(255,138,42,.8)}
+#tMenu{right:max(6px,env(safe-area-inset-right));top:6px;width:34px;height:34px;font-size:12px}
+@media (max-height:560px){.panel{zoom:.72;max-height:130vh;padding:14px 22px}h1.logo{max-width:240px;margin:-8px auto -4px}}
 #rot{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(5,3,8,.94);color:#e9d8ae;font:18px Georgia,serif;text-align:center;padding:20px}
 #rot b{font-size:46px;display:block;margin-bottom:12px}
 `;document.head.appendChild(css);
