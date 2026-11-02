@@ -44,7 +44,7 @@ b{color:#e9d8ae;font-weight:600}
     <div class="row"><div class="label">Боты</div><div class="choices" id="diffs"></div></div>
     <div class="row"><div class="label">Чувствительность мыши (в бою клавиши [ и ])</div><input type="range" id="sens" min="0.2" max="3" step="0.05"> <span id="sensv"></span></div>
     <button class="btn" id="start" disabled style="opacity:.5">Загрузка…</button><button class="btn alt" id="resume" style="display:none">Продолжить</button><button class="btn alt" id="armoryBtn">Склад оружия</button>
-    <div class="help" style="font-size:11px;margin-top:6px;color:#6f6656">Портреты орков: <a href="https://coraxdigitalart.itch.io/200-free-realistic-orc-hero-fantasy-character-portrait" target="_blank" rel="noopener" style="color:#a8946a">Corax Digital Art</a>. Остальные лицензии — в art/LICENSES.md.</div>
+    <div class="help" style="font-size:11px;margin-top:6px;color:#6f6656">Портреты орков: <a href="https://coraxdigitalart.itch.io/200-free-realistic-orc-hero-fantasy-character-portrait" target="_blank" rel="noopener" style="color:#a8946a">Corax Digital Art</a>. Оружие и монстры (виверны, минотавр): <a href="https://github.com/flareteam/flare-game" target="_blank" rel="noopener" style="color:#a8946a">Flare</a>, CC BY-SA 3.0. Текстуры: WRAD Textures, CC0. Остальные лицензии — в art/LICENSES.md.</div>
     <div class="help">
       Мышь <b>захватывается игрой</b> и не уходит за край окна. <b>Морда и есть курсор</b>: двигаете мышь, и она летит следом, остановились, и она останавливается (с инерцией). <b>Вращайте мышью круги</b>, и оружие раскрутится, а тяжёлое будет утаскивать вас за собой.<br>
       Урон зависит от <b>скорости удара</b>. Справа внизу показано, насколько быстро летит оружие.<br>
@@ -55,7 +55,7 @@ b{color:#e9d8ae;font-weight:600}
 <script>
 'use strict';
 // Версию повышать при каждом изменении игры и записывать в CHANGELOG.md
-const VERSION='2.0';
+const VERSION='2.1';
 // Набор оружия на клавишах 1/2/3 — его задаёт склад оружия (armory.js)
 function LOADOUT(){return window.getLoadout?window.getLoadout():['gira','shar','posoh']}
 document.title='Spiral Impact v'+VERSION;document.getElementById('ver').textContent='v'+VERSION;
@@ -289,10 +289,10 @@ function startGame(){
   if(mode==='train'){
     [{x:1500,y:520},{x:1900,y:800},{x:1500,y:1080}].forEach((a,i)=>fighters.push(new Fighter({name:'Манекен '+(i+1),team:'red',skin:i+3,kind:'dummy',anchor:a})));
   }else if(mode==='duel'){
-    fighters.push(new Fighter({name:nm(),team:'red',skin:Math.random()*SKINS.length|0,weapon:pick(['gira','shar','posoh','sekira','zarya','ametist'].filter(id=>WEAPONS[id])),kind:'bot',diff:df}));
+    fighters.push(new Fighter({name:nm(),team:'red',skin:Math.random()*SKINS.length|0,weapon:pick(['gira','shar','posoh','sekira','zarya','ametist','mech','krovmech','topor','bulava'].filter(id=>WEAPONS[id])),kind:'bot',diff:df}));
   }else if(mode==='horde'){ // Нашествие: игрок один против волн монстров (horde.js)
   }else{
-    const ws=['gira','shar','posoh','sekira','zarya','ametist'].filter(id=>WEAPONS[id]);
+    const ws=['gira','shar','posoh','sekira','zarya','ametist','mech','krovmech','topor','bulava'].filter(id=>WEAPONS[id]);
     for(let i=0;i<3;i++)fighters.push(new Fighter({name:nm(),team:'blue',skin:Math.random()*SKINS.length|0,weapon:pick(ws),kind:'bot',diff:df}));
     for(let i=0;i<4;i++)fighters.push(new Fighter({name:nm(),team:'red',skin:Math.random()*SKINS.length|0,weapon:pick(ws),kind:'bot',diff:df}));
   }
@@ -407,10 +407,30 @@ function fire(f){
 }
 
 // ---------- Бой ----------
+// ---------- Оружие-картинки (рендеры из игры Flare, CC BY-SA 3.0 — см. art/LICENSES.md) ----------
+// В координатах иконки 64×64: tip — ударный конец, pom — навершие (к цепи), a — точка удара (голова физики), len — длина в радиусах головы
+const ICONW={
+  gira:{img:'morningstar',tip:[10,8],pom:[52,62],a:[15,14],len:4.4},
+  molot:{img:'maul',tip:[22,8],pom:[12,62],a:[24,19],len:3.4},
+  posoh:{img:'staff_red',tip:[10,10],pom:[58,58],a:[14,14],len:3.8},
+  dushi:{img:'staff_green',tip:[14,9],pom:[58,60],a:[17,13],len:3.8},
+  bulava:{img:'mace',tip:[11,8],pom:[55,62],a:[15,13],len:4.2},
+  mech:{img:'longsword',tip:[4,62],pom:[55,2],a:[44,15],len:4.6},
+  krovmech:{img:'sword_red',tip:[4,62],pom:[58,2],a:[46,14],len:4.6},
+  topor:{img:'axe2b',tip:[8,14],pom:[60,60],a:[14,20],len:3.6}
+};
+const wSrc=n=>(window.__INLINE&&window.__INLINE['art/weapons/'+n+'.webp'])||'art/weapons/'+n+'.webp';
+for(const id in ICONW){const m=ICONW[id],i=new Image();i.onload=()=>{m.ok=true};i.src=wSrc(m.img);m.im=i;
+  m.ang=Math.atan2(m.tip[1]-m.pom[1],m.tip[0]-m.pom[0]);m.L=Math.hypot(m.tip[0]-m.pom[0],m.tip[1]-m.pom[1])}
+window.ICONW=ICONW;
+// рисует оружие так, что ось навершие→острие идёт по направлению цепи, а точка удара — в начале координат
+function iconWeapon(c,id,r,dir,alpha){const m=ICONW[id];if(!m||!m.ok)return false;const sc=m.len*r/m.L;
+  c.save();c.rotate(dir-m.ang);c.scale(sc,sc);if(alpha!=null)c.globalAlpha*=alpha;c.shadowColor='rgba(0,0,0,0.6)';c.shadowBlur=6/sc;c.shadowOffsetY=4/sc;
+  c.drawImage(m.im,-m.a[0],-m.a[1]);c.restore();return true}
 // ---------- Форма оружия (этап 4) ----------
 // Обычное оружие — круг на конце цепи. Мечи режут отрезком-лезвием, молот бьёт широкой капсулой,
 // у цепи-секиры ранят и лезвия на цепи. Направление оружия — от последнего звена к голове.
-const SHAPE={zarya:{kind:'blade',len:4.35,w:0.6,edge:1},ametist:{kind:'blade',len:4.4,w:0.55,edge:0},molot:{kind:'hammer',half:1.2,w:0.65}};
+const SHAPE={zarya:{kind:'blade',len:4.35,w:0.6,edge:1},ametist:{kind:'blade',len:4.4,w:0.55,edge:0},molot:{kind:'hammer',half:1.2,w:0.65},mech:{kind:'blade',len:3.9,w:0.45,edge:0},krovmech:{kind:'blade',len:3.9,w:0.5,edge:0},topor:{kind:'hammer',half:1.0,w:0.6}};
 function wDir(f){const h=f.head,l=f.links[f.links.length-1]||f.body;return Math.atan2(h.y-l.y,h.x-l.x)}
 function segHit(A,B,P0x,P0y,P1x,P1y,rad,shape){
   const b=B.body,ex=P1x-P0x,ey=P1y-P0y,L2=ex*ex+ey*ey||1;let t=((b.x-P0x)*ex+(b.y-P0y)*ey)/L2;t=clamp(t,0,1);
@@ -809,6 +829,7 @@ function drawChain(f){
 }
 function headDanger(f){const[vx,vy]=vel(f.head);return clamp((Math.hypot(vx,vy)-f.W.thr)/1200,0,1)}
 function drawHeadBase(f){
+  if(ICONW[f.weaponId]&&ICONW[f.weaponId].ok){const h=f.head;ctx.save();ctx.translate(h.x,h.y);iconWeapon(ctx,f.weaponId,h.r,wDir(f));ctx.restore();return}
   const h=f.head,r=h.r;ctx.save();ctx.translate(h.x,h.y);
   if(f.weaponId==='gira'){
     for(let i=0;i<8;i++){ctx.save();ctx.rotate(f.spin+i*Math.PI/4);
@@ -835,6 +856,8 @@ function drawHeadBase(f){
 function drawHeadGlow(f){
   const h=f.head,r=h.r,w=f.W,dg=headDanger(f);ctx.save();ctx.translate(h.x,h.y);
   if(dg>0){const g=ctx.createRadialGradient(0,0,0,0,0,r*2.6);g.addColorStop(0,`rgba(${w.rgb},${dg*0.45})`);g.addColorStop(1,`rgba(${w.rgb},0)`);ctx.fillStyle=g;ctx.fillRect(-r*2.6,-r*2.6,r*5.2,r*5.2)}
+  // у оружия-картинок своё свечение рисует картинка; у посоха остаётся огонь
+  if(ICONW[f.weaponId]&&ICONW[f.weaponId].ok&&f.weaponId!=='posoh'){ctx.restore();return}
   if(f.weaponId==='sekira'){
     ctx.restore();drawLightning(f,dg);ctx.save();ctx.translate(h.x,h.y);
     const g=ctx.createRadialGradient(0,0,0,0,0,r*2.2);g.addColorStop(0,`rgba(150,220,255,${0.35+dg*0.5})`);g.addColorStop(1,'rgba(60,150,255,0)');ctx.fillStyle=g;ctx.fillRect(-r*2.2,-r*2.2,r*4.4,r*4.4);

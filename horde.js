@@ -10,12 +10,23 @@ const A=()=>window.__armory;
 // r — радиус, hp — здоровье, sp — скорость, acc — разгон, mass — масса (отбрасывание), crack — цвет трещин
 const KIND={
   obych:{name:'Порождение',r:19,hp:20,sp:150,acc:3,mass:1,crack:'255,110,40',bone:'#d8ccb4',flesh:['#3a2228','#120a0c'],coins:2,xp:6,grab:4},
-  begun:{name:'Бегун',r:14,hp:8,sp:330,acc:5,mass:0.6,crack:'90,220,255',bone:'#c8d0d8',flesh:['#22283a','#0a0c14'],coins:2,xp:5,grab:4},
-  zdorov:{name:'Здоровяк',r:36,hp:110,sp:85,acc:1.6,mass:5,crack:'255,40,40',bone:'#e8dcc0',flesh:['#3a1a14','#100604'],coins:7,xp:20,shove:9},
+  begun:{name:'Виверна',fl:'wyvern',r:15,hp:8,sp:330,acc:5,mass:0.6,crack:'90,220,255',bone:'#c8d0d8',flesh:['#22283a','#0a0c14'],coins:2,xp:5,grab:4},
+  zdorov:{name:'Минотавр',fl:'minotaur',r:36,hp:110,sp:85,acc:1.6,mass:5,crack:'255,40,40',bone:'#e8dcc0',flesh:['#3a1a14','#100604'],coins:7,xp:20,shove:9},
   vzryv:{name:'Взрывун',r:21,hp:14,sp:190,acc:3,mass:0.8,crack:'150,255,60',bone:'#d0d8b0',flesh:['#26301a','#0a0e06'],coins:3,xp:8,boom:true},
-  boss:{name:'Пожиратель',r:72,hp:400,sp:115,acc:1.2,mass:30,crack:'200,90,255',bone:'#f0e6d0',flesh:['#2a1438','#08040e'],coins:150,xp:400,shove:9,boss:true}
+  boss:{name:'Огненная виверна',fl:'wyvern_fire',r:72,hp:400,sp:115,acc:1.2,mass:30,crack:'255,130,40',bone:'#f0e6d0',flesh:['#2a1438','#08040e'],coins:150,xp:400,shove:9,boss:true}
 };
 
+// ---------- Анимированные монстры из игры Flare (CC BY-SA 3.0, см. art/LICENSES.md) ----------
+// Атлас: 8 направлений (строки) × n кадров (столбцы); ax,ay — точка привязки (под ногами) в ячейке
+const FL={wyvern:{file:'wyvern_run',cw:154,ch:123,ax:74,ay:101,n:8,dur:533,size:6.2},
+  minotaur:{file:'minotaur_run',cw:148,ch:129,ax:68,ay:104,n:8,dur:533,size:4.8},
+  wyvern_fire:{file:'wyvern_fire_run',cw:220,ch:176,ax:105,ay:144,n:8,dur:533,size:4.4}};
+for(const k in FL){const f=FL[k],i=new Image();i.onload=()=>{f.ok=true};i.src=(window.__INLINE&&window.__INLINE['art/monsters/'+f.file+'.webp'])||'art/monsters/'+f.file+'.webp';f.im=i}
+// направление Flare: 0 — влево, 2 — от зрителя, 4 — вправо, 6 — к зрителю
+function flDir(a){return(4+Math.round(a/(Math.PI/4))+16)%8}
+function drawFlare(m){const f=FL[m.K.fl];if(!f||!f.ok)return false;const sc=m.r*f.size/f.cw;
+  const a=m.grab?Math.atan2(player.body.y-m.y,player.body.x-m.x):Math.atan2(m.vy,m.vx),d=flDir(a),fr=Math.floor(((time*1000/f.dur)*f.n+m.jit*3))%f.n;
+  ctx.drawImage(f.im,fr*f.cw,d*f.ch,f.cw,f.ch,m.x-f.ax*sc,m.y+m.r*0.7-f.ay*sc,f.cw*sc,f.ch*sc);return true}
 // ---------- Спрайты монстров (рисуются один раз) ----------
 // Локально: пасть смотрит в +x. Отдельный слой свечения трещин рисуется поверх освещения сцены.
 function mrand(seed){let s=seed>>>0||1;return()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return(s>>>0)/4294967296}}
@@ -115,7 +126,7 @@ function killMon(m,src){
   addP({type:'flash',x:m.x,y:m.y,life:0.18,max:0.18,size:m.r*3,rgb:K.crack});
   if(K.boom)explode(m);
   if(K.boss){H.boss=null;if(P){P.hordeBoss=(P.hordeBoss||0)+1}shake=Math.min(30,shake+18);slowT=0.6;sfx('boom',1);
-    A()&&A().bigNums.push({x:m.x,y:m.y-80,vy:-30,age:0,life:2,tier:'word',word:'Пожиратель повержен!',color:'#d8a0ff',rot:0})}
+    A()&&A().bigNums.push({x:m.x,y:m.y-80,vy:-30,age:0,life:2,tier:'word',word:'Огненная виверна повержена!',color:'#ffb060',rot:0})}
   else sfx('thud',0.25);
   if(src==='weapon'){H.series.push(time);H.seriesT=0.7}
 }
@@ -238,7 +249,8 @@ window.hordeDraw=function(layer){
     // тени и тела монстров (освещаются сценой)
     for(const br of H.breaches){const k=Math.min(1,br.t/br.warn);ctx.save();ctx.translate(br.x,br.y);ctx.strokeStyle=`rgba(10,0,8,${0.4+k*0.5})`;ctx.lineWidth=5+k*6;ctx.lineCap='round';
       for(const p of br.crack){ctx.beginPath();p.forEach((q,i)=>i?ctx.lineTo(q[0]*(0.5+k*0.8),q[1]*(0.5+k*0.8)):ctx.moveTo(0,0));ctx.stroke()}ctx.restore()}
-    for(const m of H.mons){const s=SPR[m.k],sc=m.r/s.R*1.05;
+    for(const m of H.mons){if(m.K.fl&&drawFlare(m)){if(m.K.boss&&m.tele>0){ctx.save();ctx.strokeStyle=`rgba(255,120,40,${0.3+0.5*(1-m.tele)})`;ctx.lineWidth=8;ctx.setLineDash([18,14]);ctx.beginPath();ctx.moveTo(m.x,m.y);const L=Math.hypot(m.dx,m.dy)||1;ctx.lineTo(m.x+m.dx/L*1100,m.y+m.dy/L*1100);ctx.stroke();ctx.restore()}continue}
+      const s=SPR[m.k],sc=m.r/s.R*1.05;
       ctx.globalAlpha=0.45;ctx.drawImage(shadowSpr,m.x+12-m.r*1.3,m.y+18-m.r*1.3,m.r*2.6,m.r*2.6);ctx.globalAlpha=1;
       ctx.save();ctx.translate(m.x,m.y);ctx.rotate(m.ang);if(Math.cos(m.ang)<0)ctx.scale(1,-1);
       const pulse=1+Math.sin(time*9+m.jit)*0.04;ctx.scale(sc*pulse,sc/pulse);
@@ -250,7 +262,8 @@ window.hordeDraw=function(layer){
     for(const br of H.breaches){const k=Math.min(1,br.t/br.warn),open=br.t>br.warn,fl=0.7+0.3*Math.sin(time*20+br.x);
       const R=(br.boss?160:90)*(0.4+k*0.8);const g=ctx.createRadialGradient(br.x,br.y,0,br.x,br.y,R);g.addColorStop(0,`rgba(255,${open?200:120},${open?255:60},${(0.25+k*0.6)*fl})`);g.addColorStop(0.4,`rgba(200,40,${open?200:30},${0.3*k})`);g.addColorStop(1,'rgba(120,0,60,0)');ctx.fillStyle=g;ctx.fillRect(br.x-R,br.y-R,R*2,R*2);
       ctx.save();ctx.translate(br.x,br.y);ctx.lineCap='round';for(const[wd,a]of[[10,0.25],[4,0.6],[1.6,1]]){ctx.strokeStyle=`rgba(255,${open?230:150},${open?255:90},${a*k*fl})`;ctx.lineWidth=wd;for(const p of br.crack){ctx.beginPath();p.forEach((q,i)=>i?ctx.lineTo(q[0]*(0.5+k*0.8),q[1]*(0.5+k*0.8)):ctx.moveTo(0,0));ctx.stroke()}}ctx.restore()}
-    for(const m of H.mons){const s=SPR[m.k],sc=m.r/s.R*1.05;ctx.save();ctx.translate(m.x,m.y);ctx.rotate(m.ang);if(Math.cos(m.ang)<0)ctx.scale(1,-1);ctx.scale(sc,sc);
+    for(const m of H.mons){if(m.K.fl&&FL[m.K.fl].ok){if(m.K.boss){const g=ctx.createRadialGradient(m.x,m.y,0,m.x,m.y,m.r*2);g.addColorStop(0,'rgba(255,120,30,0.35)');g.addColorStop(1,'rgba(255,60,0,0)');ctx.fillStyle=g;ctx.fillRect(m.x-m.r*2,m.y-m.r*2,m.r*4,m.r*4)}continue}
+      const s=SPR[m.k],sc=m.r/s.R*1.05;ctx.save();ctx.translate(m.x,m.y);ctx.rotate(m.ang);if(Math.cos(m.ang)<0)ctx.scale(1,-1);ctx.scale(sc,sc);
       ctx.globalAlpha=0.7+0.3*Math.sin(time*4+m.jit);ctx.drawImage(s.frames[m.open>0.5?1:0].g,-s.S/2,-s.S/2);ctx.restore();ctx.globalAlpha=1;
       if(m.fuse>=0){const g=ctx.createRadialGradient(m.x,m.y,0,m.x,m.y,m.r*3);g.addColorStop(0,`rgba(170,255,90,${0.5+0.5*Math.sin(time*40)})`);g.addColorStop(1,'rgba(120,255,60,0)');ctx.fillStyle=g;ctx.fillRect(m.x-m.r*3,m.y-m.r*3,m.r*6,m.r*6)}}
     ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='700 15px Georgia, serif';
@@ -294,7 +307,7 @@ addEventListener('keydown',e=>{if(H&&H.over&&H.overT>0.6&&e.code==='Enter'&&!pau
 // ---------- Достижения ----------
 const ACH=A()&&A().ACH;
 if(ACH){ACH.push({id:'horde10',name:'Несокрушимый',desc:'Пережить 10 волн Нашествия',stat:'hordeBest',goal:10,coins:300},
-  {id:'hordeBoss',name:'Убийца Пожирателя',desc:'Убить босса Нашествия',stat:'hordeBoss',goal:1,coins:200},
+  {id:'hordeBoss',name:'Драконоборец',desc:'Убить босса Нашествия',stat:'hordeBoss',goal:1,coins:200},
   {id:'horde1000',name:'Истребитель',desc:'Уничтожить 1000 монстров',stat:'hordeKills',goal:1000,coins:500},
   {id:'hordeCombo10',name:'Мясорубка',desc:'10 монстров за один оборот',stat:'hordeCombo',goal:10,coins:300})}
 window.__horde={state:()=>H,KIND,spawnMon:(k,x,y)=>H&&spawnMon(k,x,y)};
