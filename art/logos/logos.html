@@ -1,0 +1,190 @@
+<title>Логотипы Spiral Impact</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@500;700;900&family=UnifrakturCook:wght@700&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<style>
+/* Тёмная витрина, как меню игры: карточки-«холсты» в сетке 2×5, подписи снизу */
+:root{
+  --bg:#0b090f; --panel:#141019; --line:#3a2f45; --gold:#d4b26a; --text:#e9e2d4; --muted:#9a8f80;
+  --display:"Cinzel Decorative","Cinzel",Georgia,serif;
+  --body:"Alegreya Sans","Segoe UI",Arial,sans-serif;
+  color-scheme:dark;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:1500px;margin:0 auto;padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-direction:column;gap:6px;margin-bottom:24px}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(26px,4vw,40px);margin:0;color:var(--gold);letter-spacing:.02em;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:70ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,560px),1fr));gap:22px}
+figure{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+canvas{display:block;width:100%;height:auto;aspect-ratio:9/5;background:#000}
+figcaption{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;padding:12px 16px 14px;align-items:baseline}
+.num{font-family:var(--display);color:var(--gold);font-size:22px;grid-row:span 2;font-variant-numeric:tabular-nums;min-width:1.6em}
+.name{font-weight:700;font-size:17px}
+.desc{color:var(--muted);font-size:14.5px;grid-column:2}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Логотипы Spiral Impact</h1>
+    <p>Десять вариантов: объёмные буквы, короткий спиральный след и оружие на цепи. Назовите номер, который нравится, и его можно доработать или вставить в игру. Оружие пока нарисовано по образцу игрового; его можно заменить вашими картинками.</p>
+  </header>
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+'use strict';
+const W=720,H=400;
+const V=[
+ ['Кованое золото','Золотые буквы с гравировкой, шипастая гиря описывает виток вокруг S.'],
+ ['Шар молний','Хромированный текст, голубой след и разряды от шара на цепи.'],
+ ['Огненная комета','Раскалённые буквы, комета делает петлю вокруг надписи.'],
+ ['Рунная печать','Круглая эмблема с рунами и спиралью, гиря на конце витка.'],
+ ['Монограмма SI','Большая S из светящегося следа, I как рукоять оружия.'],
+ ['Сокрушительный удар','Гиря врезается в букву I: вспышка, трещины, искры.'],
+ ['Готика','Готический шрифт, серебро с кровавым отливом, цепь-завиток снизу.'],
+ ['Камень и магма','Каменные буквы с трещинами магмы, огненный след.'],
+ ['Галактика','Спираль галактики позади, серебряный текст, шар энергии.'],
+ ['Цепь-спираль','Строгий вариант: цепь закручена в спираль, на конце гиря.']
+];
+const rnd=(a,b)=>a+Math.random()*(b-a);
+let seed=7;const srnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+// ---------- фон карточки ----------
+function bg(c,inner,outer){const g=c.createRadialGradient(W/2,H*0.45,20,W/2,H/2,W*0.65);g.addColorStop(0,inner);g.addColorStop(1,outer);c.fillStyle=g;c.fillRect(0,0,W,H);
+  for(let i=0;i<1400;i++){c.fillStyle=`rgba(255,255,255,${srnd()*0.025})`;c.fillRect(srnd()*W,srnd()*H,1,1)}
+  const v=c.createRadialGradient(W/2,H/2,H*0.3,W/2,H/2,W*0.7);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,0.7)');c.fillStyle=v;c.fillRect(0,0,W,H)}
+
+// ---------- объёмный текст ----------
+function layer(){const l=document.createElement('canvas');l.width=W;l.height=H;return l}
+function bigText(c,txt,x,y,size,family,o){
+  o=Object.assign({stops:[[0,'#fff6d8'],[0.45,'#e0b860'],[0.55,'#8a6420'],[1,'#f0d48a']],depth:6,depthCol:'#2a1a08',glow:null,grain:0.08,cracks:null,edge:'rgba(255,255,255,0.45)',track:0.04,weight:'900'},o||{});
+  const font=`${o.weight} ${size}px ${family}`;
+  const L=layer(),l=L.getContext('2d');l.font=font;l.textAlign='center';l.textBaseline='middle';
+  try{l.letterSpacing=(o.track*size)+'px'}catch(e){}
+  const g=l.createLinearGradient(0,y-size*0.55,0,y+size*0.5);for(const[t,col]of o.stops)g.addColorStop(t,col);l.fillStyle=g;l.fillText(txt,x,y);
+  l.globalCompositeOperation='source-atop';
+  for(let i=0;i<3500;i++){l.fillStyle=srnd()<0.5?`rgba(0,0,0,${srnd()*o.grain})`:`rgba(255,255,255,${srnd()*o.grain})`;l.fillRect(x-size*4+srnd()*size*8,y-size*0.7+srnd()*size*1.4,1+srnd()*2,1)}
+  const sh=l.createLinearGradient(x-size*3,y-size,x+size*3,y+size);sh.addColorStop(0.42,'rgba(255,255,255,0)');sh.addColorStop(0.5,'rgba(255,255,255,0.35)');sh.addColorStop(0.58,'rgba(255,255,255,0)');l.fillStyle=sh;l.fillRect(0,0,W,H);
+  if(o.cracks){l.lineCap='round';for(let i=0;i<26;i++){let px=x-size*3.2+srnd()*size*6.4,py=y-size*0.4+srnd()*size*0.8;l.beginPath();l.moveTo(px,py);for(let k=0;k<5;k++){px+=rnd(-9,9);py+=rnd(-8,8);l.lineTo(px,py)}
+    l.strokeStyle='rgba(20,5,0,0.9)';l.lineWidth=3.2;l.stroke();l.strokeStyle=o.cracks;l.lineWidth=1.5;l.stroke()}}
+  l.strokeStyle=o.edge;l.lineWidth=1.2;l.strokeText(txt,x,y-1);
+  // силуэт для глубины
+  const S=layer(),s=S.getContext('2d');s.font=font;s.textAlign='center';s.textBaseline='middle';try{s.letterSpacing=(o.track*size)+'px'}catch(e){}s.fillStyle=o.depthCol;s.fillText(txt,x,y);s.lineWidth=2;s.strokeStyle=o.depthCol;s.strokeText(txt,x,y);
+  c.save();c.shadowColor='rgba(0,0,0,0.85)';c.shadowBlur=24;c.shadowOffsetY=10;c.drawImage(S,0,o.depth);c.restore();
+  for(let i=o.depth;i>0;i--){c.globalAlpha=1;c.drawImage(S,0,i);}
+  if(o.glow){c.save();c.shadowColor=`rgba(${o.glow},0.9)`;c.shadowBlur=28;c.drawImage(L,0,0);c.restore()}
+  c.drawImage(L,0,0);
+  if(o.cracks&&o.glow){c.save();c.globalCompositeOperation='lighter';c.globalAlpha=0.25;c.drawImage(L,0,0);c.restore()}
+}
+function smallText(c,txt,x,y,size,col,family,track){c.save();c.font=`700 ${size}px ${family||'Cinzel, Georgia, serif'}`;c.textAlign='center';c.textBaseline='middle';try{c.letterSpacing=(track??0.35)*size+'px'}catch(e){}
+  c.shadowColor='rgba(0,0,0,0.9)';c.shadowBlur=8;c.fillStyle=col;c.fillText(txt,x,y);c.restore()}
+
+// ---------- спиральный след ----------
+function spiral(cx,cy,r0,r1,a0,a1,n,sq,rot){const p=[];for(let i=0;i<=n;i++){const t=i/n,a=lerp(a0,a1,t),r=lerp(r0,r1,t);let x=Math.cos(a)*r,y=Math.sin(a)*r*(sq||1);const cs=Math.cos(rot||0),sn=Math.sin(rot||0);p.push([cx+x*cs-y*sn,cy+x*sn+y*cs])}return p}
+function trail(c,pts,w0,w1,rgb,core){c.save();c.globalCompositeOperation='lighter';c.lineCap='round';
+  for(const[k,a]of[[3.2,0.08],[1.8,0.18],[1,0.5]])for(let i=1;i<pts.length;i++){const t=i/pts.length;c.strokeStyle=`rgba(${rgb},${a*Math.pow(t,1.4)})`;c.lineWidth=lerp(w0,w1,t)*k;c.beginPath();c.moveTo(pts[i-1][0],pts[i-1][1]);c.lineTo(pts[i][0],pts[i][1]);c.stroke()}
+  for(let i=1;i<pts.length;i++){const t=i/pts.length;c.strokeStyle=`rgba(${core||'255,255,240'},${0.9*Math.pow(t,2)})`;c.lineWidth=lerp(w0,w1,t)*0.3;c.beginPath();c.moveTo(pts[i-1][0],pts[i-1][1]);c.lineTo(pts[i][0],pts[i][1]);c.stroke()}
+  c.restore()}
+function sparks(c,x,y,n,rgb,sp){c.save();c.globalCompositeOperation='lighter';c.lineCap='round';for(let i=0;i<n;i++){const a=srnd()*6.283,l=(4+srnd()*18)*(sp||1),d=srnd()*20;c.strokeStyle=`rgba(${rgb},${0.4+srnd()*0.6})`;c.lineWidth=1+srnd()*1.4;c.beginPath();c.moveTo(x+Math.cos(a)*d,y+Math.sin(a)*d);c.lineTo(x+Math.cos(a)*(d+l),y+Math.sin(a)*(d+l));c.stroke()}c.restore()}
+function glowDot(c,x,y,r,rgb,a){c.save();c.globalCompositeOperation='lighter';const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,`rgba(${rgb},${a??0.8})`);g.addColorStop(1,`rgba(${rgb},0)`);c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2);c.restore()}
+
+// ---------- оружие ----------
+function mace(c,x,y,r,rot,tint){c.save();c.translate(x,y);
+  c.save();c.shadowColor='rgba(0,0,0,0.8)';c.shadowBlur=14;c.shadowOffsetY=6;c.fillStyle='#000';c.beginPath();c.arc(0,0,r,0,7);c.fill();c.restore();
+  for(let i=0;i<10;i++){c.save();c.rotate(rot+i*Math.PI/5);const g=c.createLinearGradient(0,-r*0.3,0,r*0.3);g.addColorStop(0,'#d6dbe6');g.addColorStop(0.5,'#5a606e');g.addColorStop(1,'#16181d');c.fillStyle=g;
+    c.beginPath();c.moveTo(r*0.75,-r*0.28);c.lineTo(r*1.65,0);c.lineTo(r*0.75,r*0.28);c.closePath();c.fill();c.strokeStyle='rgba(0,0,0,0.6)';c.lineWidth=1;c.stroke();c.restore()}
+  const g=c.createRadialGradient(-r*0.35,-r*0.4,r*0.05,0,0,r);g.addColorStop(0,'#eef1f6');g.addColorStop(0.25,tint||'#7a8090');g.addColorStop(0.8,'#22252d');g.addColorStop(1,'#0b0c10');c.fillStyle=g;c.beginPath();c.arc(0,0,r,0,7);c.fill();
+  c.strokeStyle='rgba(0,0,0,0.5)';c.lineWidth=2;c.beginPath();c.arc(0,0,r*0.62,0,7);c.stroke();
+  c.fillStyle='rgba(255,255,255,0.7)';c.beginPath();c.ellipse(-r*0.38,-r*0.42,r*0.2,r*0.1,-0.7,0,7);c.fill();c.restore()}
+function orb(c,x,y,r){glowDot(c,x,y,r*3.2,'90,150,255',0.55);c.save();c.translate(x,y);
+  const g=c.createRadialGradient(0,0,0,0,0,r);g.addColorStop(0,'#ffffff');g.addColorStop(0.3,'#a8d0ff');g.addColorStop(0.75,'#2a5ad8');g.addColorStop(1,'#0a1440');c.fillStyle=g;c.beginPath();c.arc(0,0,r,0,7);c.fill();
+  c.globalCompositeOperation='lighter';c.strokeStyle='rgba(200,230,255,0.9)';c.lineWidth=1.4;for(let k=0;k<5;k++){let a=srnd()*6.283,rr=r*0.3;c.beginPath();c.moveTo(Math.cos(a)*rr,Math.sin(a)*rr);for(let s=0;s<6;s++){rr+=r*0.32;a+=rnd(-0.6,0.6);c.lineTo(Math.cos(a)*rr,Math.sin(a)*rr)}c.stroke()}
+  c.restore()}
+function comet(c,x,y,r){glowDot(c,x,y,r*4,'255,120,30',0.6);glowDot(c,x,y,r*1.8,'255,220,150',0.9);c.save();c.translate(x,y);
+  const g=c.createRadialGradient(-r*0.2,-r*0.2,0,0,0,r);g.addColorStop(0,'#fff8e0');g.addColorStop(0.4,'#ffc060');g.addColorStop(1,'#a02800');c.fillStyle=g;c.beginPath();c.arc(0,0,r,0,7);c.fill();c.restore()}
+function chain(c,pts,size,tint){const s=size||7;let k=0;
+  for(let i=1;i<pts.length;i++){const[a,b]=[pts[i-1],pts[i]],dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy),n=Math.max(1,Math.round(L/(s*1.25))),ang=Math.atan2(dy,dx);
+    for(let j=0;j<n;j++,k++){const t=(j+0.5)/n;c.save();c.translate(a[0]+dx*t,a[1]+dy*t);c.rotate(ang);
+      if(k%2===0){c.beginPath();c.ellipse(0,0,s,s*0.6,0,0,7);c.lineWidth=s*0.42;c.strokeStyle='#15161b';c.stroke();c.beginPath();c.ellipse(0,-s*0.08,s*0.9,s*0.52,0,Math.PI*1.1,Math.PI*1.9);c.lineWidth=s*0.18;c.strokeStyle=tint||'#b8bfcc';c.stroke()}
+      else{c.fillStyle='#15161b';c.fillRect(-s,-s*0.28,s*2,s*0.56);c.fillStyle=tint||'#b8bfcc';c.fillRect(-s*0.85,-s*0.22,s*1.7,s*0.16)}
+      c.restore()}}}
+
+const SILVER=[[0,'#ffffff'],[0.4,'#c8d0dc'],[0.52,'#5a6474'],[0.62,'#a8b2c2'],[1,'#e8eef6']];
+const GOLD=[[0,'#fff6d8'],[0.42,'#e8c068'],[0.53,'#7a5418'],[0.65,'#c89a40'],[1,'#ffe8a8']];
+
+// ---------- варианты ----------
+const DRAW=[
+ c=>{ // 1 кованое золото
+  bg(c,'#2a1e14','#060403');
+  const sp=spiral(150,190,30,95,-0.6,Math.PI*1.25,60,0.75,0.2);trail(c,sp,1,15,'255,190,80');
+  bigText(c,'Spiral Impact',375,200,72,'"Cinzel Decorative", Georgia, serif',{stops:GOLD,depthCol:'#2a1806',depth:7,glow:'255,170,60'});
+  const e=sp[sp.length-1];chain(c,[[e[0],e[1]],[e[0]+18,e[1]-26],[e[0]+30,e[1]-48]],5,'#d8b060');mace(c,e[0],e[1],17,0.4,'#a08040');sparks(c,e[0],e[1],10,'255,200,120');
+  smallText(c,'АРЕНА ОРУЖИЯ НА ЦЕПИ',375,272,15,'#c9a55a','"Alegreya Sans", sans-serif',0.4)},
+ c=>{ // 2 шар молний
+  bg(c,'#0e1630','#020309');
+  const sp=spiral(600,150,20,80,Math.PI*1.1,Math.PI*2.6,70,0.7,-0.2);trail(c,sp,1,16,'90,170,255','220,240,255');
+  bigText(c,'SPIRAL',320,160,80,'Cinzel, Georgia, serif',{stops:SILVER,depthCol:'#0a1020',glow:'80,150,255',track:0.08});
+  bigText(c,'IMPACT',320,250,80,'Cinzel, Georgia, serif',{stops:SILVER,depthCol:'#0a1020',glow:'80,150,255',track:0.08});
+  const e=sp[sp.length-1];chain(c,[[e[0],e[1]],[e[0]+30,e[1]+20],[e[0]+52,e[1]+46]],5);orb(c,e[0],e[1],16)},
+ c=>{ // 3 огненная комета
+  bg(c,'#2a0e06','#050101');
+  const sp=spiral(360,215,170,265,Math.PI*0.9,Math.PI*1.92,80,0.36,0);trail(c,sp,2,22,'255,110,20','255,230,170');
+  bigText(c,'Spiral Impact',360,200,70,'Cinzel, Georgia, serif',{stops:[[0,'#fff3c0'],[0.35,'#ffb030'],[0.6,'#c03800'],[1,'#ffd070']],depthCol:'#2a0800',glow:'255,90,10',edge:'rgba(255,240,200,0.6)'});
+  const e=sp[sp.length-1];comet(c,e[0],e[1],13);sparks(c,e[0],e[1],18,'255,170,60',1.2)},
+ c=>{ // 4 рунная печать
+  bg(c,'#1a1424','#040306');const cx=360,cy=160;
+  c.save();c.translate(cx,cy);for(const[rr,w]of[[112,5],[96,2]]){c.beginPath();c.arc(0,0,rr,0,7);c.lineWidth=w;c.strokeStyle='#c9a55a';c.shadowColor='rgba(0,0,0,0.8)';c.shadowBlur=6;c.stroke()}
+  c.font='16px "UnifrakturCook", serif';c.fillStyle='#e0c27a';c.textAlign='center';const runes='ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊ';for(let i=0;i<16;i++){c.save();c.rotate(i*Math.PI/8);c.fillText(runes[i],0,-100);c.restore()}c.restore();
+  const sp=spiral(cx,cy,4,78,0,Math.PI*3.3,120,1,0);trail(c,sp,1,10,'190,140,255','245,230,255');const e=sp[sp.length-1];mace(c,e[0],e[1],13,0.2,'#806aa0');glowDot(c,cx,cy,30,'190,140,255',0.6);
+  bigText(c,'SPIRAL IMPACT',360,330,46,'Cinzel, Georgia, serif',{stops:GOLD,depth:4,depthCol:'#1a1006',glow:'190,140,255',track:0.12})},
+ c=>{ // 5 монограмма
+  bg(c,'#14101e','#030205');
+  const s=[];for(let i=0;i<=90;i++){const t=i/90,a=lerp(-Math.PI*0.15,Math.PI*1.15,t<0.5?t*2:1)+(t<0.5?0:0);}
+  const top=spiral(300,140,55,55,-Math.PI*0.1,-Math.PI*1.45,50,1,0),bot=spiral(300,250,55,55,-Math.PI*0.5,Math.PI*0.95,50,1,0);
+  trail(c,[...top,...bot],2,26,'255,80,60','255,220,200');const e=bot[bot.length-1];sparks(c,e[0],e[1],14,'255,140,100');
+  // I — рукоять
+  c.save();const g=c.createLinearGradient(412,0,448,0);g.addColorStop(0,'#3a2410');g.addColorStop(0.5,'#c08a48');g.addColorStop(1,'#2a1808');c.fillStyle=g;c.shadowColor='rgba(0,0,0,0.8)';c.shadowBlur=14;c.fillRect(418,92,24,200);c.restore();
+  for(const yy of[100,140,180,220,260]){c.fillStyle='rgba(0,0,0,0.45)';c.fillRect(418,yy,24,4)}mace(c,430,80,20,0.3,'#8a90a0');
+  smallText(c,'SPIRAL IMPACT',360,350,26,'#e9d8ae','Cinzel, serif',0.5)},
+ c=>{ // 6 удар
+  bg(c,'#1c1418','#040203');const hx=468,hy=196;
+  c.save();c.globalCompositeOperation='lighter';for(let i=0;i<18;i++){const a=i/18*6.283+srnd()*0.2,l=rnd(90,220);const g=c.createLinearGradient(hx,hy,hx+Math.cos(a)*l,hy+Math.sin(a)*l);g.addColorStop(0,'rgba(255,230,180,0.6)');g.addColorStop(1,'rgba(255,120,40,0)');c.strokeStyle=g;c.lineWidth=rnd(2,6);c.beginPath();c.moveTo(hx,hy);c.lineTo(hx+Math.cos(a)*l,hy+Math.sin(a)*l);c.stroke()}c.restore();
+  glowDot(c,hx,hy,120,'255,180,90',0.7);
+  bigText(c,'Spiral Impact',360,200,72,'Cinzel, Georgia, serif',{stops:SILVER,depthCol:'#14100c',glow:'255,160,80',cracks:'#ffb050'});
+  const sp=spiral(hx+10,hy-30,120,40,-Math.PI*0.95,-Math.PI*0.05,40,0.55,0.4);trail(c,sp,2,16,'255,170,90');mace(c,hx+34,hy-58,20,0.7);sparks(c,hx,hy,30,'255,210,140',1.6)},
+ c=>{ // 7 готика
+  bg(c,'#1c0a0c','#040102');
+  bigText(c,'Spiral Impact',360,170,84,'"UnifrakturCook", serif',{weight:'700',stops:[[0,'#ffffff'],[0.4,'#c8c4cc'],[0.55,'#6a1018'],[0.7,'#b02030'],[1,'#e8d0d4']],depthCol:'#1a0204',glow:'200,20,40',track:0.01});
+  const sp=spiral(360,262,40,180,Math.PI*1.5,Math.PI*0.05+Math.PI*2,90,0.22,0);chain(c,sp,5,'#c8c0c8');trail(c,sp.slice(50),1,8,'255,60,80');const e=sp[sp.length-1];mace(c,e[0],e[1],14,0.2,'#7a2028')},
+ c=>{ // 8 камень и магма
+  bg(c,'#1a120e','#050302');
+  const sp=spiral(130,200,20,80,-Math.PI*0.4,Math.PI*1.3,60,0.8,0);trail(c,sp,1,16,'255,100,20','255,220,150');const e=sp[sp.length-1];comet(c,e[0],e[1],12);
+  bigText(c,'SPIRAL',400,150,82,'"Cinzel Decorative", Georgia, serif',{stops:[[0,'#a8a098'],[0.5,'#5a524c'],[1,'#2a2420']],depthCol:'#0a0806',depth:8,glow:'255,90,20',cracks:'#ff8a20',grain:0.25,edge:'rgba(255,255,255,0.25)'});
+  bigText(c,'IMPACT',400,250,82,'"Cinzel Decorative", Georgia, serif',{stops:[[0,'#a8a098'],[0.5,'#5a524c'],[1,'#2a2420']],depthCol:'#0a0806',depth:8,glow:'255,90,20',cracks:'#ff8a20',grain:0.25,edge:'rgba(255,255,255,0.25)'});
+  for(let i=0;i<30;i++){const x=rnd(200,620),y=rnd(80,330);glowDot(c,x,y,rnd(2,4),'255,140,40',0.8)}},
+ c=>{ // 9 галактика
+  bg(c,'#0a0a1e','#010104');const cx=360,cy=200;
+  c.save();c.globalCompositeOperation='lighter';for(let arm=0;arm<3;arm++)for(let i=0;i<900;i++){const t=srnd(),a=arm*2.094+t*5.5+rnd(-0.25,0.25),r=t*300;const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r*0.42;c.fillStyle=`rgba(${srnd()<0.5?'170,150,255':'255,200,230'},${(1-t)*0.5*srnd()})`;c.fillRect(x,y,1.6,1.6)}c.restore();
+  glowDot(c,cx,cy,110,'200,170,255',0.55);
+  bigText(c,'Spiral Impact',360,200,70,'Cinzel, Georgia, serif',{stops:SILVER,depthCol:'#0a0a18',glow:'170,140,255',track:0.06});
+  const sp=spiral(cx,cy,250,280,Math.PI*0.15,Math.PI*0.75,40,0.42,0);trail(c,sp,1,12,'190,160,255');const e=sp[sp.length-1];orb(c,e[0],e[1],14)},
+ c=>{ // 10 цепь-спираль
+  bg(c,'#121216','#030304');
+  const sp=spiral(170,200,6,105,0,Math.PI*3.2,140,1,0);chain(c,sp,5.5);trail(c,sp.slice(100),1,10,'220,225,240');const e=sp[sp.length-1];mace(c,e[0],e[1],18,0.5);
+  c.save();c.font='500 58px Cinzel, Georgia, serif';c.textAlign='left';c.textBaseline='middle';try{c.letterSpacing='10px'}catch(err){}
+  const g=c.createLinearGradient(0,150,0,250);g.addColorStop(0,'#ffffff');g.addColorStop(1,'#9aa2b0');c.fillStyle=g;c.shadowColor='rgba(0,0,0,0.9)';c.shadowBlur=12;c.fillText('SPIRAL',320,165);c.fillText('IMPACT',320,240);c.restore();
+  c.fillStyle='#d4b26a';c.fillRect(322,203,330,2)}
+];
+
+const grid=document.getElementById('grid');const cvs=[];
+V.forEach(([name,desc],i)=>{const f=document.createElement('figure');const cv=document.createElement('canvas');cv.width=W*2;cv.height=H*2;cv.setAttribute('role','img');cv.setAttribute('aria-label','Вариант '+(i+1)+': '+name);
+  const cap=document.createElement('figcaption');cap.innerHTML=`<span class="num">${i+1}</span><span class="name"></span><span class="desc"></span>`;cap.querySelector('.name').textContent=name;cap.querySelector('.desc').textContent=desc;
+  f.append(cv,cap);grid.append(f);cvs.push(cv)});
+function drawAll(){cvs.forEach((cv,i)=>{seed=7+i*31;const c=cv.getContext('2d');c.setTransform(2,0,0,2,0,0);c.clearRect(0,0,W,H);try{DRAW[i](c)}catch(e){console.error(e)}})}
+drawAll();
+const fonts=['900 40px "Cinzel Decorative"','700 40px "Cinzel Decorative"','900 40px Cinzel','700 40px Cinzel','500 40px Cinzel','700 40px "UnifrakturCook"','700 20px "Alegreya Sans"'];
+Promise.all(fonts.map(f=>document.fonts.load(f).catch(()=>null))).then(()=>document.fonts.ready).then(drawAll);
+</script>
