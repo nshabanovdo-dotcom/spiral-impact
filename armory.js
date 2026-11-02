@@ -80,10 +80,11 @@ const bigNums=[];let redFlash=0;
 const WORDS60=['Разгром!','Казнь!','Уничтожение!','Сокрушение!'];
 function pushNum(x,y,dmg,kind,vic){
   // близкие удары по одной цели складываются в одну цифру
-  if(vic&&!kind){for(const n of bigNums)if(n.vic===vic&&typeof n.tier==='number'&&n.age<0.4){n.dmg+=dmg;n.tier=n.dmg>=60?4:n.dmg>=40?3:n.dmg>=20?2:1;n.age=0.05;n.x=x;n.y=y;
+  if(vic&&kind==='burn'){for(const n of bigNums)if(n.vic===vic&&n.tier==='burn'&&n.age<0.8){n.dmg+=dmg;return}}
+  if(vic&&!kind){for(const n of bigNums)if(n.vic===vic&&typeof n.tier==='number'&&time-n.born<0.5){n.dmg+=dmg;n.tier=n.dmg>=60?4:n.dmg>=40?3:n.dmg>=20?2:1;n.age=0.05;n.x=x;n.y=y;
     n.life=n.tier===4?1.8:n.tier===3?1.5:n.tier===2?1.2:1;if(n.tier===4&&!n.word)n.word=pick(WORDS60);else if(n.tier===3&&!n.word)n.word='Сокрушительно!';return}}
   const tier=kind||(dmg>=60?4:dmg>=40?3:dmg>=20?2:1);
-  bigNums.push({x,y,vy:tier==='burn'||tier==='coin'?-40:-55,age:0,life:tier===4?1.8:tier===3?1.5:tier===2?1.2:1,dmg,tier,rot:typeof tier==='number'&&tier>=2?rnd(-0.12,0.12):0,word:tier===4?pick(WORDS60):tier===3?'Сокрушительно!':'',vic});
+  bigNums.push({x,y,vy:tier==='burn'||tier==='coin'?-40:-55,age:0,life:tier===4?1.8:tier===3?1.5:tier===2?1.2:1,dmg,tier,rot:typeof tier==='number'&&tier>=2?rnd(-0.12,0.12):0,word:tier===4?pick(WORDS60):tier===3?'Сокрушительно!':'',vic,born:time});
 }
 function drawNums(dt){
   for(const n of bigNums){n.age+=dt;n.y+=n.vy*dt;n.vy*=Math.pow(0.2,dt)}
@@ -93,7 +94,7 @@ function drawNums(dt){
     const sx=VW/2+(n.x-cam.x)*zoom,sy=VH/2+(n.y-cam.y)*zoom,al=clamp((n.life-n.age)/0.4,0,1),k=Math.sqrt(zoom);
     ctx.save();ctx.globalAlpha=al;ctx.translate(sx,sy);
     if(n.tier==='burn'||n.tier==='coin'){
-      ctx.font=`700 ${15*k|0}px Georgia, serif`;ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,0.85)';const t=n.tier==='coin'?'+'+n.dmg+' ◈':Math.round(n.dmg*10)/10;
+      ctx.font=`700 ${15*k|0}px Georgia, serif`;ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,0.85)';const t=n.tier==='coin'?'+'+n.dmg+' ◈':Math.round(n.dmg);
       ctx.strokeText(t,0,0);ctx.fillStyle=n.tier==='coin'?'#ffd36a':'#ff9a3c';ctx.fillText(t,0,0);ctx.restore();continue}
     if(n.tier==='word'){const S=26*k,pop=n.age<0.12?1+(1-n.age/0.12)*0.6:1;ctx.scale(pop,pop);ctx.font=`${S|0}px ${SLAV}`;ctx.lineWidth=S*0.14;ctx.strokeStyle='#1a0505';ctx.strokeText(n.word,0,0);ctx.fillStyle=n.color||'#ff6a5a';ctx.fillText(n.word,0,0);ctx.restore();continue}
     if(n.tier===1){ctx.font=`700 ${18*k|0}px Georgia, serif`;ctx.lineWidth=3.5;ctx.strokeStyle='rgba(0,0,0,0.85)';ctx.strokeText(Math.round(n.dmg),0,0);ctx.fillStyle='#f2ece0';ctx.fillText(Math.round(n.dmg),0,0);ctx.restore();continue}
@@ -278,7 +279,7 @@ damage=function(vic,dmg,att,x,y){
   nums.length=n0;
   if(keep){hitStop=keep[0];shake=keep[1];zoomPunch=keep[2]}
   if(isBag){vic.hp=vic.maxHp;bagHit(dmg)}
-  pushNum(x,y-24,dmg,dot?'burn':0,dot?null:vic);
+  pushNum(x,y-24,dmg,dot?'burn':0,vic);
   if(!dot&&dmg>=40){sparks(x,y,20,900);addP({type:'ring',x,y,life:0.4,max:0.4,size:20,grow:700,rgb:'255,200,120'})}
   if(!dot&&dmg>=60&&(att===player||vic===player)){redFlash=0.4;hitStop=Math.max(hitStop,0.12);slowT=Math.max(slowT,0.25);shake=Math.min(30,shake+10);zoomPunch=Math.min(0.1,zoomPunch+0.04)}
   if(!dot&&att&&att!==vic&&att.W&&att.W.fx)weaponFx(att,vic,dmg,x,y);

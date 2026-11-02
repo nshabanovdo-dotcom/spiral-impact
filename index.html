@@ -55,7 +55,7 @@ b{color:#e9d8ae;font-weight:600}
 <script>
 'use strict';
 // Версию повышать при каждом изменении игры и записывать в CHANGELOG.md
-const VERSION='1.9';
+const VERSION='2.0';
 // Набор оружия на клавишах 1/2/3 — его задаёт склад оружия (armory.js)
 function LOADOUT(){return window.getLoadout?window.getLoadout():['gira','shar','posoh']}
 document.title='Spiral Impact v'+VERSION;document.getElementById('ver').textContent='v'+VERSION;
@@ -156,11 +156,20 @@ function genIslands(){const W=2048,H=1152,cv=document.createElement('canvas');cv
   cloudLayer(c,W,H,R,{cell:40,th:0.42,dens:2.2,alpha:0.95,light:[255,250,245],dark:[170,170,195],y0:H*0.62,y1:H,mask:y=>Math.min(1,y*2.2)});
   grain(c,W,H,R,0.04);return cv}
 
+// Фото-текстуры (CC0, WRAD Textures — см. art/LICENSES.md): стена, камни, металл
+const TEX={};
+const texSrc=n=>(window.__INLINE&&window.__INLINE['art/textures/'+n+'.webp'])||'art/textures/'+n+'.webp';
+const texReady=Promise.all(['bricks2','bricks4','stone4','stone2','stone3','metal3','rust1'].map(n=>new Promise(res=>{const i=new Image();i.onload=()=>{TEX[n]=i;res()};i.onerror=()=>res();i.src=texSrc(n)})));
+// текстура, затонированная и уменьшенная до нужного масштаба (кешируется)
+const TEXC={};
+function texTint(n,scale,tint,dark){const key=n+scale+tint+dark;if(TEXC[key])return TEXC[key];const im=TEX[n];if(!im)return null;const w=Math.round(im.width*scale),h=Math.round(im.height*scale);
+  const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.drawImage(im,0,0,w,h);if(tint){x.globalCompositeOperation='multiply';x.fillStyle=tint;x.fillRect(0,0,w,h);x.globalCompositeOperation='source-over'}
+  if(dark){x.fillStyle=`rgba(0,0,0,${dark})`;x.fillRect(0,0,w,h)}return TEXC[key]=c}
 // Арены: фон, общий свет (ambient), факелы. Фон — «небо» за ареной с лёгким параллаксом.
 const ARENAS=[
-  {id:'zal',name:'Каменный зал',desc:'факелы и руны',ambient:'rgb(96,88,120)',torches:true,rim:'255,170,100',grade:'rgba(255,140,70,0.16)'},
-  {id:'dyuny',name:'Закатные дюны',desc:'пустыня под кольцами планеты',ambient:'rgb(200,176,160)',dim:0.18,gen:genDunes,rim:'255,200,150',grade:'rgba(255,160,100,0.18)'},
-  {id:'ostrova',name:'Небесные острова',desc:'облака и летающие скалы',ambient:'rgb(206,210,222)',dim:0.18,gen:genIslands,rim:'225,238,255',grade:'rgba(140,175,255,0.14)'}
+  {id:'zal',name:'Каменный зал',desc:'факелы и руны',ambient:'rgb(96,88,120)',torches:true,rim:'255,170,100',grade:'rgba(255,140,70,0.16)',rock:'stone4',rockTint:'#8a7e96'},
+  {id:'dyuny',name:'Закатные дюны',desc:'пустыня под кольцами планеты',ambient:'rgb(200,176,160)',dim:0.18,gen:genDunes,rim:'255,200,150',grade:'rgba(255,160,100,0.18)',rock:'stone3',rockTint:'#e0b898'},
+  {id:'ostrova',name:'Небесные острова',desc:'облака и летающие скалы',ambient:'rgb(206,210,222)',dim:0.18,gen:genIslands,rim:'225,238,255',grade:'rgba(140,175,255,0.14)',rock:'stone2',rockTint:'#b8c0d0'}
 ];
 let ARENA=ARENAS[0];
 const TEAMC={blue:'#5aa8ff',red:'#ff5262'};
@@ -587,6 +596,8 @@ function bakeArena(A){
     c.lineWidth=2;c.strokeStyle='rgba(212,178,106,0.5)';c.strokeRect(1,1,AW-2,AH-2);
   }else{
   c.fillStyle='#0f0c14';c.fillRect(0,0,AW,AH);
+  const wallT=texTint('bricks2',1.0,'#6a5a7a',0.35);
+  if(wallT){c.fillStyle=c.createPattern(wallT,'repeat');c.fillRect(0,0,AW,AH)}else{
   const bh=58;
   for(let row=0,y=0;y<AH;row++,y+=bh){let x=row%2?-rnd(30,70):0;
     while(x<AW){const w=rnd(95,155);c.fillStyle=`hsl(${rnd(245,275)|0},${rnd(6,14)|0}%,${rnd(12,20)|0}%)`;c.fillRect(x+2,y+2,w-4,bh-4);
@@ -595,7 +606,7 @@ function bakeArena(A){
       if(Math.random()<0.18){c.strokeStyle='rgba(0,0,0,0.5)';c.lineWidth=1.2;c.beginPath();let cx=x+rnd(10,w-10),cy=y+4;c.moveTo(cx,cy);for(let k=0;k<4;k++){cx+=rnd(-10,10);cy+=rnd(6,14);c.lineTo(cx,Math.min(cy,y+bh-4))}c.stroke()}
       if(Math.random()<0.08){c.fillStyle='rgba(0,0,0,0.35)';c.beginPath();c.arc(x+rnd(8,w-8),y+rnd(8,bh-8),rnd(3,8),0,7);c.fill()}
       x+=w}}
-  const id=c.getImageData(0,0,AW,AH),d=id.data;for(let i=0;i<d.length;i+=4){const n=(Math.random()-0.5)*16;d[i]+=n;d[i+1]+=n;d[i+2]+=n}c.putImageData(id,0,0);
+  const id=c.getImageData(0,0,AW,AH),d=id.data;for(let i=0;i<d.length;i+=4){const n=(Math.random()-0.5)*16;d[i]+=n;d[i+1]+=n;d[i+2]+=n}c.putImageData(id,0,0);}
   for(let i=0;i<70;i++){const x=rnd(0,AW),y=rnd(0,AH),r=rnd(80,320);const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,'rgba(0,0,0,0.28)');g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2)}
   for(let i=0;i<40;i++){const x=rnd(0,AW),y=rnd(0,AH*0.6),l=rnd(100,400);const g=c.createLinearGradient(0,y,0,y+l);g.addColorStop(0,'rgba(0,0,0,0.25)');g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(x,y,rnd(3,10),l)}
   // вырезанный рунный круг
@@ -624,15 +635,19 @@ function bakeArena(A){
     c.save();c.translate(p.x,p.y);
     const pts=[];for(let i=0;i<9;i++){const a=i/9*Math.PI*2;pts.push([Math.cos(a)*p.r*rnd(0.95,1.12),Math.sin(a)*p.r*rnd(0.95,1.12)])}
     const path=new Path2D();pts.forEach((q,i)=>i?path.lineTo(q[0],q[1]):path.moveTo(q[0],q[1]));path.closePath();
+    const rockT=texTint(A.rock||'stone4',0.45,A.rockTint||'#8a7e96',0);
     const g=c.createRadialGradient(-p.r*0.35,-p.r*0.4,4,0,0,p.r*1.15);g.addColorStop(0,'#6a6274');g.addColorStop(0.5,'#38323f');g.addColorStop(1,'#151219');c.fillStyle=g;c.fill(path);
-    c.save();c.clip(path);for(let i=0;i<220;i++){c.fillStyle=Math.random()<0.5?'rgba(0,0,0,0.25)':'rgba(255,255,255,0.06)';c.fillRect(rnd(-p.r,p.r),rnd(-p.r,p.r),rnd(1,3),rnd(1,3))}
+    c.save();c.clip(path);
+    if(rockT){c.fillStyle=c.createPattern(rockT,'repeat');c.save();c.translate(rnd(0,200),rnd(0,200));c.fillRect(-p.r*3,-p.r*3,p.r*6,p.r*6);c.restore();
+      const sh=c.createRadialGradient(-p.r*0.4,-p.r*0.45,p.r*0.1,0,0,p.r*1.2);sh.addColorStop(0,'rgba(255,240,230,0.25)');sh.addColorStop(0.45,'rgba(0,0,0,0.1)');sh.addColorStop(1,'rgba(0,0,0,0.75)');c.fillStyle=sh;c.fillRect(-p.r*2,-p.r*2,p.r*4,p.r*4)}
+    else for(let i=0;i<220;i++){c.fillStyle=Math.random()<0.5?'rgba(0,0,0,0.25)':'rgba(255,255,255,0.06)';c.fillRect(rnd(-p.r,p.r),rnd(-p.r,p.r),rnd(1,3),rnd(1,3))}
     for(let i=0;i<5;i++){c.strokeStyle='rgba(0,0,0,0.5)';c.lineWidth=2;c.beginPath();let x=rnd(-p.r,p.r)*0.6,y=rnd(-p.r,p.r)*0.6;c.moveTo(x,y);for(let k=0;k<4;k++){x+=rnd(-14,14);y+=rnd(-14,14);c.lineTo(x,y)}c.stroke()}
     c.restore();c.strokeStyle='rgba(0,0,0,0.7)';c.lineWidth=2;c.stroke(path);
     p.cracks=[];for(let i=0;i<3;i++){const cr=[];let x=rnd(-10,10),y=rnd(-10,10);cr.push([x,y]);for(let k=0;k<5;k++){x+=rnd(-13,13);y+=rnd(-13,13);cr.push([clamp(x,-p.r*0.8,p.r*0.8),clamp(y,-p.r*0.8,p.r*0.8)])}p.cracks.push(cr)}
     c.strokeStyle='#1a0a2a';c.lineWidth=4;for(const cr of p.cracks){c.beginPath();cr.forEach((q,i)=>i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]));c.stroke()}
     c.restore()}
 }
-bakeArena(ARENA);
+bakeArena(ARENA);texReady.then(()=>bakeArena(ARENA)); // перепечь, когда загрузились фото-текстуры
 // ---------- Препятствия арен ----------
 // Шипы на стенах (урон при сильном ударе о них), маятники с шипастым шаром, зоны-ловушки (лава, пустота),
 // отталкивающие рунные стены. У каждой арены своя раскладка.
@@ -696,12 +711,14 @@ function drawTraps(layer){
       else{const g=ctx.createLinearGradient(0,z.y,0,z.y+z.h);g.addColorStop(0,'rgba(20,6,30,0)');g.addColorStop(0.35,'rgba(14,4,24,0.85)');g.addColorStop(1,'#020005');ctx.fillStyle=g;ctx.fillRect(z.x,z.y,z.w,z.h);
         ctx.strokeStyle='rgba(120,60,180,0.35)';ctx.lineWidth=2;for(let i=0;i<6;i++){const y=z.y+z.h*0.3+i*z.h*0.11;ctx.beginPath();for(let x=0;x<=z.w;x+=40)ctx.lineTo(z.x+x,y+Math.sin(x*0.01+time*(1+i*0.3)+i)*8);ctx.stroke()}}}
     // отталкивающие стены
+    const slab=texTint('bricks4',0.3,'#9a92a8',0.15);
     for(const q of TRAPS.bounce){const g=ctx.createLinearGradient(q.x,q.y,q.x+q.w,q.y+q.h);g.addColorStop(0,'#5a5866');g.addColorStop(0.5,'#2c2a34');g.addColorStop(1,'#16141a');ctx.fillStyle=g;ctx.fillRect(q.x,q.y,q.w,q.h);
+      if(slab){ctx.fillStyle=ctx.createPattern(slab,'repeat');ctx.fillRect(q.x,q.y,q.w,q.h);const sh=ctx.createLinearGradient(q.x,q.y,q.x+q.w,q.y+q.h);sh.addColorStop(0,'rgba(255,255,255,0.12)');sh.addColorStop(1,'rgba(0,0,0,0.5)');ctx.fillStyle=sh;ctx.fillRect(q.x,q.y,q.w,q.h)}
       ctx.strokeStyle='rgba(0,0,0,0.7)';ctx.lineWidth=2;ctx.strokeRect(q.x,q.y,q.w,q.h);ctx.fillStyle='rgba(255,255,255,0.08)';ctx.fillRect(q.x+3,q.y+3,q.w-6,4)}
     // маятники: цепь от потолка и шипастый шар
     for(const p of TRAPS.pend){ctx.strokeStyle='#14161b';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(p.x,0);ctx.lineTo(p.bx,p.by);ctx.stroke();ctx.strokeStyle='#8a90a0';ctx.lineWidth=2;ctx.setLineDash([10,8]);ctx.beginPath();ctx.moveTo(p.x,0);ctx.lineTo(p.bx,p.by);ctx.stroke();ctx.setLineDash([]);
       ctx.save();ctx.translate(p.bx,p.by);ctx.rotate(p.ang*3);const r=p.r;for(let i=0;i<10;i++){ctx.save();ctx.rotate(i*Math.PI/5);const g=ctx.createLinearGradient(0,-r*0.3,0,r*0.3);g.addColorStop(0,'#c8ccd6');g.addColorStop(0.5,'#4a4f5c');g.addColorStop(1,'#14161b');ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(r*0.8,-r*0.25);ctx.lineTo(r*1.55,0);ctx.lineTo(r*0.8,r*0.25);ctx.fill();ctx.restore()}
-      const g=ctx.createRadialGradient(-r*0.35,-r*0.4,2,0,0,r);g.addColorStop(0,'#d8dce6');g.addColorStop(0.3,'#6a7080');g.addColorStop(1,'#0b0c10');ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.fill();ctx.restore()}
+      const g=ctx.createRadialGradient(-r*0.35,-r*0.4,2,0,0,r);g.addColorStop(0,'#d8dce6');g.addColorStop(0.3,'#6a7080');g.addColorStop(1,'#0b0c10');ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.fill();metalBall(ctx,r,'rust1');ctx.restore()}
   }else{
     for(const z of TRAPS.zones){if(z.kind==='lava'){const g=ctx.createLinearGradient(0,z.y-120,0,z.y+20);g.addColorStop(0,'rgba(255,120,30,0)');g.addColorStop(1,`rgba(255,120,30,${0.35+0.1*Math.sin(time*3)})`);ctx.fillStyle=g;ctx.fillRect(z.x,z.y-120,z.w,140)}
       else{const g=ctx.createLinearGradient(0,z.y-60,0,z.y+40);g.addColorStop(0,'rgba(150,80,255,0)');g.addColorStop(1,`rgba(150,80,255,${0.25+0.08*Math.sin(time*2)})`);ctx.fillStyle=g;ctx.fillRect(z.x,z.y-60,z.w,100)}}
@@ -757,6 +774,8 @@ function drawMordaGlow(c,x,y,r,si,lx,ly,hurt,tilt,squash,alpha){
 
 // ---------- Рисование мира ----------
 // лезвие секиры: двойной полумесяц поперёк направления (локальная ось y — вдоль цепи)
+function metalBall(c,r,tex){const t=texTint(tex||'metal3',0.25,'#9aa0ae',0);if(!t)return;c.save();c.beginPath();c.arc(0,0,r,0,7);c.clip();c.globalAlpha=0.75;c.globalCompositeOperation='multiply';c.drawImage(t,-r,-r,r*2,r*2);c.globalCompositeOperation='source-over';c.globalAlpha=1;
+  const g=c.createRadialGradient(-r*0.35,-r*0.4,r*0.05,0,0,r);g.addColorStop(0,'rgba(255,255,255,0.55)');g.addColorStop(0.25,'rgba(255,255,255,0.08)');g.addColorStop(0.8,'rgba(0,0,0,0.35)');g.addColorStop(1,'rgba(0,0,0,0.8)');c.fillStyle=g;c.fillRect(-r,-r,r*2,r*2);c.restore()}
 function axeBlade(c,r,hi){const p=new Path2D(),sw=r*0.35; // sw — концы лезвий скошены назад, вдоль цепи
   for(const sd of[-1,1]){p.moveTo(sd*r*0.12,-r*0.3);p.quadraticCurveTo(sd*r*0.55,-r*0.45,sd*r*1.05,-r*0.95+sw);
     p.quadraticCurveTo(sd*r*1.85,-r*0.05+sw*0.5,sd*r*1.05,r*0.95+sw);p.quadraticCurveTo(sd*r*0.75,r*0.25+sw*0.5,sd*r*0.12,r*0.3);p.closePath()}
@@ -796,7 +815,7 @@ function drawHeadBase(f){
       const g=ctx.createLinearGradient(0,-r*0.3,0,r*0.3);g.addColorStop(0,'#a8afbd');g.addColorStop(0.5,'#4a4f5c');g.addColorStop(1,'#14161b');ctx.fillStyle=g;
       ctx.beginPath();ctx.moveTo(r*0.72,-r*0.3);ctx.lineTo(r*1.58,0);ctx.lineTo(r*0.72,r*0.3);ctx.closePath();ctx.fill();ctx.strokeStyle='rgba(0,0,0,0.6)';ctx.lineWidth=1;ctx.stroke();ctx.restore()}
     const g=ctx.createRadialGradient(-r*0.35,-r*0.4,r*0.05,0,0,r);g.addColorStop(0,'#c4cad6');g.addColorStop(0.3,'#666c7a');g.addColorStop(0.8,'#22252d');g.addColorStop(1,'#0b0c10');
-    ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.fill();
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.fill();metalBall(ctx,r);
     ctx.save();ctx.rotate(f.spin);ctx.strokeStyle='rgba(0,0,0,0.55)';ctx.lineWidth=2.4;ctx.beginPath();ctx.arc(0,0,r*0.62,0,7);ctx.stroke();
     ctx.beginPath();for(let i=0;i<4;i++){const a=i*Math.PI/2;ctx.moveTo(Math.cos(a)*r*0.25,Math.sin(a)*r*0.25);ctx.lineTo(Math.cos(a+0.6)*r*0.52,Math.sin(a+0.6)*r*0.52)}ctx.stroke();ctx.restore();
     ctx.fillStyle='rgba(255,255,255,0.55)';ctx.beginPath();ctx.ellipse(-r*0.38,-r*0.42,r*0.18,r*0.1,-0.7,0,7);ctx.fill();
