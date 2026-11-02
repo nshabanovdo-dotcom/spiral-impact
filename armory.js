@@ -64,7 +64,7 @@ const xpFor=l=>100*(l-1)*l/2;
 const levelOf=xp=>{let l=1;while(xp>=xpFor(l+1))l++;return l};
 const statOf=s=>s==='level'?levelOf(prof.xp):prof[s]||0;
 window.getLoadout=()=>prof.loadout;
-const progressMode=()=>mode==='duel'||mode==='team';
+const progressMode=()=>mode==='duel'||mode==='team'||mode==='ffa';
 const mult=()=>[0.6,1,1.5][sel.diff]||1;
 
 const toasts=[];
