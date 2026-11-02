@@ -77,7 +77,7 @@ function startWave(){
 // пролом — светящийся разлом в стене арены; виден заранее, потом выпускает монстров
 function openBreach(list){
   const p=player.body;let x,y;
-  for(let t=0;t<20;t++){const a=Math.random()*6.283,d=rnd(520,900);x=p.x+Math.cos(a)*d;y=p.y+Math.sin(a)*d;if(x>120&&x<AW-120&&y>120&&y<AH-120&&!PILLARS.some(c=>Math.hypot(c.x-x,c.y-y)<c.r+80))break}
+  for(let t=0;t<20;t++){const a=Math.random()*6.283,d=rnd(520,900);x=p.x+Math.cos(a)*d;y=p.y+Math.sin(a)*d;if(x>120&&x<AW-120&&y>120&&y<AH-120&&!PILLARS.some(c=>Math.hypot(c.x-x,c.y-y)<c.r+80)&&!zoneAt(x,y)&&!zoneAt(x,y+120))break}
   x=clamp(x,120,AW-120);y=clamp(y,120,AH-120);
   const crack=[];for(let k=0;k<3;k++){const p2=[];let a=Math.random()*6.28,px=0,py=0;p2.push([0,0]);for(let i=0;i<6;i++){a+=rnd(-0.7,0.7);px+=Math.cos(a)*rnd(10,22);py+=Math.sin(a)*rnd(10,22);p2.push([px,py])}crack.push(p2)}
   H.breaches.push({x,y,t:0,warn:1.6,list,emitT:0,crack,boss:list.includes('boss')});
@@ -182,6 +182,10 @@ window.hordeStep=function(){
     const ta=Math.atan2(m.vy||dy,m.vx||dx);m.ang+=Math.atan2(Math.sin(ta-m.ang),Math.cos(ta-m.ang))*Math.min(1,dt*8);
     if(m.x<m.r){m.x=m.r;m.vx=Math.abs(m.vx)}if(m.x>AW-m.r){m.x=AW-m.r;m.vx=-Math.abs(m.vx)}if(m.y<m.r){m.y=m.r;m.vy=Math.abs(m.vy)}if(m.y>AH-m.r){m.y=AH-m.r;m.vy=-Math.abs(m.vy)}
     for(const c of PILLARS){const px=m.x-c.x,py=m.y-c.y,rr=c.r+m.r,d2=px*px+py*py;if(d2<rr*rr){const dd=Math.sqrt(d2)||1;m.x=c.x+px/dd*rr;m.y=c.y+py/dd*rr}}
+    // ловушки арены ранят и монстров
+    const z=zoneAt(m.x,m.y);if(z){m.zt=(m.zt||0)-dt;if(m.zt<=0){m.zt=0.3;hurtMon(m,z.kind==='lava'?10:6,0,-1,'trap')}}
+    for(const p of TRAPS.pend){const px=m.x-p.bx,py=m.y-p.by,rr=p.r+m.r;if(px*px+py*py<rr*rr&&m.hitCd<=0){const dd=Math.hypot(px,py)||1;m.hitCd=0.4;hurtMon(m,m.K.boss?20:35,px/dd,py/dd,'trap')}}
+    for(const q of TRAPS.bounce){const cx=clamp(m.x,q.x,q.x+q.w),cy=clamp(m.y,q.y,q.y+q.h),px=m.x-cx,py=m.y-cy,d2=px*px+py*py;if(d2<m.r*m.r){const dd=Math.sqrt(d2)||1;m.x=cx+px/dd*m.r;m.y=cy+py/dd*m.r;m.vx+=px/dd*300;m.vy+=py/dd*300}}
   }
   H.mons=H.mons.filter(m=>m.alive);
   gridBuild();

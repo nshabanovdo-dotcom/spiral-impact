@@ -55,7 +55,7 @@ b{color:#e9d8ae;font-weight:600}
 <script>
 'use strict';
 // Версию повышать при каждом изменении игры и записывать в CHANGELOG.md
-const VERSION='1.6';
+const VERSION='1.7';
 // Набор оружия на клавишах 1/2/3 — его задаёт склад оружия (armory.js)
 function LOADOUT(){return window.getLoadout?window.getLoadout():['gira','shar','posoh']}
 document.title='Spiral Impact v'+VERSION;document.getElementById('ver').textContent='v'+VERSION;
@@ -356,6 +356,8 @@ function botThink(f){
   // центр плавно догоняет желаемую точку (реакция зависит от сложности)
   const kc=1-Math.exp(-DT*(ai.atk?14+6*f.diff:3+3*f.diff));ai.ox+=(clamp(cx,150,AW-150)-ai.ox)*kc;ai.oy+=(clamp(cy,150,AH-150)-ai.oy)*kc;
   let px=ai.ox+Math.cos(ai.th)*rho,py=ai.oy+Math.sin(ai.th)*rho;
+  for(const z of TRAPS.zones)if(px>z.x-120&&px<z.x+z.w+120&&py>z.y-160)py=Math.min(py,z.y-160);
+  if(b.y>AH-260&&zoneAt(b.x,b.y+150))py=Math.min(py,b.y-200);
   let ox=px-b.x,oy=py-b.y;const L=Math.hypot(ox,oy);if(L>LEASH){ox*=LEASH/L;oy*=LEASH/L}
   const kd=KD;let ax=ox*KP-vx*kd,ay=oy*KP-vy*kd;const A=Math.hypot(ax,ay),amax=AMAX*D.k;if(A>amax){ax*=amax/A;ay*=amax/A}
   f.ax=ax;f.ay=ay;
@@ -525,13 +527,14 @@ function step(){
   }
   for(let it=0;it<8;it++)for(const f of alive){const w=f.W;if(!w)continue;const ch=f.chain;for(let i=0;i<ch.length-1;i++)rope(ch[i],ch[i+1],w.seg)}
   for(const f of alive){
-    bounds(f.body,0.5);for(const l of f.links)bounds(l,0.4);pillars(f.body);
+    spikeHit(f,bounds(f.body,0.5));for(const l of f.links)bounds(l,0.4);pillars(f.body);
     if(f.head){const hs=Math.max(bounds(f.head,0.45),pillars(f.head));
       // якорь цепляется за стену или камень на 1 с: цепь натягивается, можно раскачиваться
       if(f.weaponId==='yakor'&&hs>450&&!(f.hookT>0)&&!((f.hookCd||0)>time)){f.hookT=1;f.hookX=f.head.x;f.hookY=f.head.y;f.head.im=0;
         addP({type:'ring',x:f.head.x,y:f.head.y,life:0.3,max:0.3,size:10,grow:200,rgb:'176,122,255'});sfx('clash',0.6)}
       if(hs>600){sparks(f.head.x,f.head.y,hs/150|0,hs*0.4);for(let i=0;i<3;i++)addP({type:'smoke',x:f.head.x,y:f.head.y,vx:rnd(-60,60),vy:rnd(-60,20),life:0.7,max:0.7,size:8,grow:35,drag:0.94,color:'70,64,80'});sfx('thud',Math.min(1,hs/2000))}}
   }
+  trapStep(alive);
   for(let i=0;i<alive.length;i++)for(let j=i+1;j<alive.length;j++)interact(alive[i],alive[j]);
   updateProjs(alive);
   for(const f of alive)if(f.alive)tick(f);
@@ -623,7 +626,83 @@ function bakeArena(A){
     c.restore()}
 }
 bakeArena(ARENA);
-function setArena(id){ARENA=id==='random'?pick(ARENAS):ARENAS.find(a=>a.id===id)||ARENAS[0];bakeArena(ARENA)}
+// ---------- Препятствия арен ----------
+// Шипы на стенах (урон при сильном ударе о них), маятники с шипастым шаром, зоны-ловушки (лава, пустота),
+// отталкивающие рунные стены. У каждой арены своя раскладка.
+const LAYOUTS={
+  zal:{spikes:[{side:'L',a:1500,b:2700},{side:'R',a:1500,b:2700},{side:'T',a:1900,b:2900}],
+    pend:[{x:1500,len:1050,amp:0.85,ph:0},{x:3300,len:1050,amp:0.85,ph:Math.PI}],
+    zones:[{kind:'lava',x:1900,y:AH-140,w:1000,h:140}],
+    bounce:[{x:560,y:1450,w:56,h:360},{x:4184,y:1450,w:56,h:360}]},
+  dyuny:{spikes:[{side:'B',a:450,b:1500},{side:'B',a:3300,b:4350}],
+    pend:[{x:2400,len:1350,amp:0.95,ph:0.7}],
+    zones:[{kind:'void',x:2000,y:AH-240,w:800,h:240}],
+    bounce:[{x:1050,y:880,w:320,h:48},{x:3430,y:880,w:320,h:48}]},
+  ostrova:{spikes:[{side:'T',a:800,b:1800},{side:'T',a:3000,b:4000}],
+    pend:[{x:1200,len:1250,amp:0.8,ph:0},{x:2400,len:1550,amp:0.7,ph:2.1},{x:3600,len:1250,amp:0.8,ph:4.2}],
+    zones:[{kind:'void',x:0,y:AH-190,w:AW,h:190}],
+    bounce:[{x:2250,y:1550,w:300,h:56}]}
+};
+let TRAPS=LAYOUTS.zal;
+function setTraps(){TRAPS=LAYOUTS[ARENA.id]||{spikes:[],pend:[],zones:[],bounce:[]};for(const p of TRAPS.pend){p.r=34;p.w=Math.sqrt(GRAV/p.len)*0.9;pendPos(p)}}
+function pendPos(p){const t=time*p.w+p.ph,a=p.amp*Math.sin(t),da=p.amp*Math.cos(t)*p.w;p.ang=a;p.bx=p.x+Math.sin(a)*p.len;p.by=Math.cos(a)*p.len;p.vx=Math.cos(a)*da*p.len;p.vy=-Math.sin(a)*da*p.len}
+function zoneAt(x,y){for(const z of TRAPS.zones)if(x>z.x&&x<z.x+z.w&&y>z.y&&y<z.y+z.h)return z;return null}
+// круг ↔ неподвижный (или кинематический) круг: возвращает скорость удара
+function hitCircle(p,cx,cy,cr,cvx,cvy,e){const dx=p.x-cx,dy=p.y-cy,rr=cr+p.r,d2=dx*dx+dy*dy;if(d2>=rr*rr)return -1;const d=Math.sqrt(d2)||1,nx=dx/d,ny=dy/d;
+  movePos(p,nx*(rr-d),ny*(rr-d));const[vx,vy]=vel(p),rel=(vx-cvx)*nx+(vy-cvy)*ny;if(rel>=0)return 0;setVel(p,vx-(1+e)*rel*nx,vy-(1+e)*rel*ny);return -rel}
+// круг ↔ отталкивающий прямоугольник: отражение с прибавкой скорости
+function hitBounce(p,b){const cx=clamp(p.x,b.x,b.x+b.w),cy=clamp(p.y,b.y,b.y+b.h),dx=p.x-cx,dy=p.y-cy,d2=dx*dx+dy*dy;if(d2>=p.r*p.r)return 0;
+  let nx,ny,d=Math.sqrt(d2);if(d<1e-3){const l=p.x-b.x,r=b.x+b.w-p.x,t=p.y-b.y,bt=b.y+b.h-p.y,m=Math.min(l,r,t,bt);nx=m===l?-1:m===r?1:0;ny=m===t?-1:m===bt?1:0;d=0}else{nx=dx/d;ny=dy/d}
+  movePos(p,nx*(p.r-d),ny*(p.r-d));const[vx,vy]=vel(p),vn=vx*nx+vy*ny;if(vn<0){setVel(p,vx-vn*nx*2.35+nx*260,vy-vn*ny*2.35+ny*260);return -vn}return 0}
+function trapStep(alive){
+  for(const p of TRAPS.pend)pendPos(p);
+  for(const f of alive){const b=f.body;if(f.kind==='bag')continue;
+    // маятники: бьют тела и отбивают оружие
+    for(const p of TRAPS.pend){const s=hitCircle(b,p.bx,p.by,p.r,p.vx,p.vy,0.6);if(s>350&&(f.trapCd||0)<time){f.trapCd=time+0.6;damage(f,Math.min(40,8+(s-350)*0.03),null,b.x,b.y)}
+      if(f.head)hitCircle(f.head,p.bx,p.by,p.r,p.vx,p.vy,0.7)}
+    // отталкивающие стены
+    for(const q of TRAPS.bounce){if(hitBounce(b,q)>200){addP({type:'ring',x:b.x,y:b.y,life:0.25,max:0.25,size:10,grow:240,rgb:'120,200,255'});sfx('dash',0.3)}if(f.head)hitBounce(f.head,q);for(const l of f.links)hitBounce(l,q)}
+    // зоны: лава жжёт и выталкивает вверх, пустота затягивает вниз и вытягивает жизнь
+    const z=zoneAt(b.x,b.y);
+    if(z){const[vx,vy]=vel(b);if(z.kind==='lava')setVel(b,vx*0.985,vy-2600*DT);else setVel(b,vx*0.97,vy+900*DT);
+      f.zoneT=(f.zoneT||0)-DT;if(f.zoneT<=0&&f.inv<=0){f.zoneT=0.25;damage(f,z.kind==='lava'?6:4,null,b.x,b.y-10);if(z.kind==='lava')for(let i=0;i<3;i++)addP({type:'ember',x:b.x+rnd(-12,12),y:b.y,vx:rnd(-40,40),vy:rnd(-160,-60),life:0.6,max:0.6,size:2.5,g:-60,drag:0.98,rgb:'255,140,40'})}}
+  }
+}
+// шипы на стенах: проверяются, когда тело сильно ударилось о стену
+function spikeHit(f,hs){if(hs<380||(f.spikeCd||0)>time||f.kind==='bag'||f.kind==='dummy')return;const b=f.body;
+  for(const s of TRAPS.spikes){const on=s.side==='L'?b.x<b.r+3&&b.y>s.a&&b.y<s.b:s.side==='R'?b.x>AW-b.r-3&&b.y>s.a&&b.y<s.b:s.side==='T'?b.y<b.r+3&&b.x>s.a&&b.x<s.b:b.y>AH-b.r-3&&b.x>s.a&&b.x<s.b;
+    if(on){f.spikeCd=time+0.5;const dmg=Math.min(45,6+(hs-380)*0.035);damage(f,dmg,null,b.x,b.y);sparks(b.x,b.y,10,500);
+      const[vx,vy]=vel(b),nx=s.side==='L'?1:s.side==='R'?-1:0,ny=s.side==='T'?1:s.side==='B'?-1:0;setVel(b,vx+nx*500,vy+ny*500);return}}}
+function drawTraps(layer){
+  if(layer===0){
+    // шипы
+    for(const s of TRAPS.spikes){const n=Math.floor((s.b-s.a)/34);for(let i=0;i<n;i++){const t=s.a+17+i*34;ctx.save();
+      if(s.side==='L')ctx.translate(0,t),ctx.rotate(Math.PI/2);else if(s.side==='R')ctx.translate(AW,t),ctx.rotate(-Math.PI/2);else if(s.side==='T')ctx.translate(t,0),ctx.rotate(Math.PI);else ctx.translate(t,AH);
+      const g=ctx.createLinearGradient(-14,0,14,0);g.addColorStop(0,'#2a2c34');g.addColorStop(0.45,'#c8ccd8');g.addColorStop(1,'#1a1b20');ctx.fillStyle=g;
+      ctx.beginPath();ctx.moveTo(-14,0);ctx.lineTo(0,-46);ctx.lineTo(14,0);ctx.closePath();ctx.fill();ctx.strokeStyle='rgba(0,0,0,0.6)';ctx.lineWidth=1;ctx.stroke();
+      ctx.fillStyle='rgba(120,20,20,0.5)';ctx.beginPath();ctx.moveTo(-2,-30);ctx.lineTo(0,-46);ctx.lineTo(3,-28);ctx.fill();ctx.restore()}
+      const L=s.side==='L'||s.side==='R';ctx.fillStyle='#1a1418';if(L)ctx.fillRect(s.side==='L'?0:AW-10,s.a,10,s.b-s.a);else ctx.fillRect(s.a,s.side==='T'?0:AH-10,s.b-s.a,10)}
+    // зоны
+    for(const z of TRAPS.zones){if(z.kind==='lava'){const g=ctx.createLinearGradient(0,z.y,0,z.y+z.h);g.addColorStop(0,'#ff8a20');g.addColorStop(0.25,'#c83a08');g.addColorStop(1,'#3a0802');ctx.fillStyle=g;
+        ctx.beginPath();ctx.moveTo(z.x,z.y+z.h);for(let x=0;x<=z.w;x+=20)ctx.lineTo(z.x+x,z.y+Math.sin(x*0.03+time*2)*6+6);ctx.lineTo(z.x+z.w,z.y+z.h);ctx.fill();
+        ctx.fillStyle='rgba(40,10,4,0.6)';for(let i=0;i<14;i++){const x=z.x+((i*137+time*30)%z.w),y=z.y+30+(i*53)%Math.max(20,z.h-40);ctx.beginPath();ctx.ellipse(x,y,26,8,0,0,7);ctx.fill()}}
+      else{const g=ctx.createLinearGradient(0,z.y,0,z.y+z.h);g.addColorStop(0,'rgba(20,6,30,0)');g.addColorStop(0.35,'rgba(14,4,24,0.85)');g.addColorStop(1,'#020005');ctx.fillStyle=g;ctx.fillRect(z.x,z.y,z.w,z.h);
+        ctx.strokeStyle='rgba(120,60,180,0.35)';ctx.lineWidth=2;for(let i=0;i<6;i++){const y=z.y+z.h*0.3+i*z.h*0.11;ctx.beginPath();for(let x=0;x<=z.w;x+=40)ctx.lineTo(z.x+x,y+Math.sin(x*0.01+time*(1+i*0.3)+i)*8);ctx.stroke()}}}
+    // отталкивающие стены
+    for(const q of TRAPS.bounce){const g=ctx.createLinearGradient(q.x,q.y,q.x+q.w,q.y+q.h);g.addColorStop(0,'#5a5866');g.addColorStop(0.5,'#2c2a34');g.addColorStop(1,'#16141a');ctx.fillStyle=g;ctx.fillRect(q.x,q.y,q.w,q.h);
+      ctx.strokeStyle='rgba(0,0,0,0.7)';ctx.lineWidth=2;ctx.strokeRect(q.x,q.y,q.w,q.h);ctx.fillStyle='rgba(255,255,255,0.08)';ctx.fillRect(q.x+3,q.y+3,q.w-6,4)}
+    // маятники: цепь от потолка и шипастый шар
+    for(const p of TRAPS.pend){ctx.strokeStyle='#14161b';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(p.x,0);ctx.lineTo(p.bx,p.by);ctx.stroke();ctx.strokeStyle='#8a90a0';ctx.lineWidth=2;ctx.setLineDash([10,8]);ctx.beginPath();ctx.moveTo(p.x,0);ctx.lineTo(p.bx,p.by);ctx.stroke();ctx.setLineDash([]);
+      ctx.save();ctx.translate(p.bx,p.by);ctx.rotate(p.ang*3);const r=p.r;for(let i=0;i<10;i++){ctx.save();ctx.rotate(i*Math.PI/5);const g=ctx.createLinearGradient(0,-r*0.3,0,r*0.3);g.addColorStop(0,'#c8ccd6');g.addColorStop(0.5,'#4a4f5c');g.addColorStop(1,'#14161b');ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(r*0.8,-r*0.25);ctx.lineTo(r*1.55,0);ctx.lineTo(r*0.8,r*0.25);ctx.fill();ctx.restore()}
+      const g=ctx.createRadialGradient(-r*0.35,-r*0.4,2,0,0,r);g.addColorStop(0,'#d8dce6');g.addColorStop(0.3,'#6a7080');g.addColorStop(1,'#0b0c10');ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.fill();ctx.restore()}
+  }else{
+    for(const z of TRAPS.zones){if(z.kind==='lava'){const g=ctx.createLinearGradient(0,z.y-120,0,z.y+20);g.addColorStop(0,'rgba(255,120,30,0)');g.addColorStop(1,`rgba(255,120,30,${0.35+0.1*Math.sin(time*3)})`);ctx.fillStyle=g;ctx.fillRect(z.x,z.y-120,z.w,140)}
+      else{const g=ctx.createLinearGradient(0,z.y-60,0,z.y+40);g.addColorStop(0,'rgba(150,80,255,0)');g.addColorStop(1,`rgba(150,80,255,${0.25+0.08*Math.sin(time*2)})`);ctx.fillStyle=g;ctx.fillRect(z.x,z.y-60,z.w,100)}}
+    for(const q of TRAPS.bounce){ctx.strokeStyle=`rgba(120,200,255,${0.5+0.3*Math.sin(time*3+q.x)})`;ctx.lineWidth=2;ctx.strokeRect(q.x+6,q.y+6,q.w-12,q.h-12)}
+  }}
+function trapLights(){for(const z of TRAPS.zones){for(let x=z.x+150;x<z.x+z.w;x+=400)addLight(x,z.y,420,z.kind==='lava'?'255,120,40':'150,80,255',0.5)}for(const q of TRAPS.bounce)addLight(q.x+q.w/2,q.y+q.h/2,180,'120,200,255',0.3)}
+function setArena(id){ARENA=id==='random'?pick(ARENAS):ARENAS.find(a=>a.id===id)||ARENAS[0];bakeArena(ARENA);setTraps()}
+setTraps();
 // фон-картинка с параллаксом: движется медленнее камеры, чуть больше арены
 function drawArenaBg(){if(ARENA.gen&&!ARENA.img)ARENA.img=ARENA.gen();const im=ARENA.img;if(!im)return;
   ctx.save();ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -792,7 +871,7 @@ function render(dt){
   const sx=(Math.random()-.5)*shake,sy=(Math.random()-.5)*shake;
   const world=()=>{ctx.setTransform(DPR,0,0,DPR,0,0);ctx.translate(VW/2,VH/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x+sx,-cam.y+sy)};
   world();
-  drawArenaBg();ctx.drawImage(arenaCv,0,0);
+  drawArenaBg();ctx.drawImage(arenaCv,0,0);drawTraps(0);
   const alive=fighters.filter(f=>f.alive);
   // тени на стене
   for(const f of alive){const b=f.body;ctx.globalAlpha=0.6;ctx.drawImage(shadowSpr,b.x+16-b.r*1.4,b.y+24-b.r*1.4,b.r*2.8,b.r*2.8);
@@ -823,6 +902,7 @@ function render(dt){
     if(f.head){const dg=headDanger(f);const base=f.weaponId==='gira'?0.15:0.45;addLight(f.head.x,f.head.y,160+dg*200,f.W.rgb,base+dg*0.6)}}
   for(const p of projs)addLight(p.x,p.y,240,'255,140,50',0.9);
   for(const p of parts)if(p.type==='flash')addLight(p.x,p.y,p.size*4,p.rgb,clamp(p.life/p.max,0,1));
+  trapLights();
   if(mode==='horde'&&window.hordeLights)hordeLights();
   renderLights(sx,sy);
   // свечение (поверх освещения)
@@ -843,6 +923,7 @@ function render(dt){
     else if(p.type==='ember'){ctx.fillStyle=`rgba(${p.rgb},${al})`;ctx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size)}
     else if(p.type==='flash'){const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size);g.addColorStop(0,`rgba(${p.rgb},${al})`);g.addColorStop(1,`rgba(${p.rgb},0)`);ctx.fillStyle=g;ctx.fillRect(p.x-p.size,p.y-p.size,p.size*2,p.size*2)}
     else if(p.type==='ring'){ctx.strokeStyle=`rgba(${p.rgb},${al*0.7})`;ctx.lineWidth=3*al+0.5;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,7);ctx.stroke()}}
+  drawTraps(1);
   if(mode==='horde'&&window.hordeDraw)hordeDraw(1);
   ctx.globalCompositeOperation='source-over';
   // прицел игрока
@@ -871,6 +952,9 @@ function drawMinimap(){
   const w=200,h=Math.round(w*AH/AW),x0=14,y0=VH-62-h,k=w/AW;
   panel(x0-4,y0-4,w+8,h+8);ctx.save();ctx.beginPath();ctx.rect(x0,y0,w,h);ctx.clip();
   ctx.fillStyle='rgba(212,178,106,0.06)';ctx.fillRect(x0,y0,w,h);
+  for(const z of TRAPS.zones){ctx.fillStyle=z.kind==='lava'?'rgba(255,120,40,0.6)':'rgba(150,80,255,0.5)';ctx.fillRect(x0+z.x*k,y0+z.y*k,Math.max(2,z.w*k),Math.max(2,z.h*k))}
+  ctx.fillStyle='rgba(120,200,255,0.6)';for(const q of TRAPS.bounce)ctx.fillRect(x0+q.x*k,y0+q.y*k,Math.max(2,q.w*k),Math.max(2,q.h*k));
+  ctx.fillStyle='#c8ccd6';for(const p of TRAPS.pend){ctx.beginPath();ctx.arc(x0+p.bx*k,y0+p.by*k,2.5,0,7);ctx.fill()}
   ctx.fillStyle='rgba(150,130,180,0.55)';for(const p of PILLARS){ctx.beginPath();ctx.arc(x0+p.x*k,y0+p.y*k,Math.max(2,p.r*k),0,7);ctx.fill()}
   const vw=VW/zoom,vh=VH/zoom;ctx.strokeStyle='rgba(240,225,195,0.45)';ctx.lineWidth=1;ctx.strokeRect(x0+(cam.x-vw/2)*k,y0+(cam.y-vh/2)*k,vw*k,vh*k);
   for(const f of fighters){if(!f.alive||f.kind==='bag')continue;const fx=x0+f.body.x*k,fy=y0+f.body.y*k;ctx.fillStyle=TEAMC[f.team];ctx.beginPath();ctx.arc(fx,fy,f===player?3.6:2.6,0,7);ctx.fill();
