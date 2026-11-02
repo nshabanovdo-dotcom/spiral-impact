@@ -123,7 +123,6 @@ const BAG_SPR=(()=>{const W=64,H=104,c=document.createElement('canvas');c.width=
   x.restore();x.strokeStyle='rgba(0,0,0,0.75)';x.lineWidth=2;x.stroke(body);
   x.fillStyle='#2a2a32';x.fillRect(-10,-H/2-6,20,8);x.strokeStyle='#8a8a96';x.lineWidth=2.5;x.beginPath();x.arc(0,-H/2-8,5,0,7);x.stroke();
   return c})();
-SPR.push(BAG_SPR);
 function drawBag(c,x,y,r,squash,alpha){
   const th=Math.atan2(PIVOT.y-y,PIVOT.x-x)+Math.PI/2,H=104,top=[x+Math.sin(th)*(H/2+12),y-Math.cos(th)*(H/2+12)];
   c.save();c.globalAlpha=alpha;
