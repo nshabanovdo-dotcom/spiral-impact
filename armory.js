@@ -389,6 +389,17 @@ $('aBag').onclick=()=>{arm.classList.add('hidden');refreshMenuWeapons();initAudi
 addEventListener('keydown',e=>{if(e.code==='Escape'&&!arm.classList.contains('hidden'))closeArmory()});
 refreshMenuWeapons();
 
+// ---------- Тестовый режим (ссылка с ?dev) ----------
+// Кнопки для проверки оружия: монеты, открыть всё, сбросить прогресс. Без ?dev в адресе их нет.
+if(/[?&]dev\b/.test(location.search)){
+  const box=document.createElement('div');box.style.cssText='margin-top:10px;padding:8px;border:1px dashed #6a3a3a;border-radius:4px;font-size:12px;color:#c08080';
+  box.innerHTML='Тестовый режим: <button class="sbtn" style="width:auto;margin:0 4px" id="dCoins">+5000 ◈</button><button class="sbtn" style="width:auto;margin:0 4px" id="dAll">Открыть всё оружие</button><button class="sbtn" style="width:auto;margin:0 4px" id="dReset">Сбросить прогресс</button>';
+  $('aBack').after(box);
+  $('dCoins').onclick=()=>{prof.coins+=5000;save();renderArmory()};
+  $('dAll').onclick=()=>{for(const id of ALL)if(!prof.owned.includes(id))prof.owned.push(id);save();renderArmory()};
+  $('dReset').onclick=()=>{if(!confirm('Сбросить уровень, монеты, достижения и купленное оружие?'))return;Object.assign(prof,defaults());save();renderArmory()};
+}
+
 // ---------- Выбивание оружия ----------
 // Сильное столкновение оружия с оружием: у кого импульс (масса × скорость) заметно меньше,
 // у того оружие отрывается и улетает; через 3 секунды оно само возвращается.
