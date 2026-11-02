@@ -33,6 +33,14 @@
 | `weapons/morningstar.webp`, `mace`, `maul`, `staff_red`, `staff_green`, `longsword`, `sword_red`, `axe2b` | иконки оружия 64×64 | вырезаны из общего листа иконок, убран чёрный фон |
 | `monsters/wyvern_run.webp`, `wyvern_fire_run.webp`, `minotaur_run.webp` | анимация полёта/бега, 8 направлений × 8 кадров | кадры собраны в атлас и уменьшены |
 
+## Графика с OpenGameArt.org
+| Файлы | Источник | Автор | Лицензия |
+|---|---|---|---|
+| `weapons/kosa.webp`, `chakram`, `angel_axe`, `heavy_sword`, `angel_spear` (уменьшены); исходный архив `source/oga/angel_weapons.zip` | «Angel Weapons — Set», https://opengameart.org/content/angel-weapons-set | cethiel (https://opengameart.org/users/cethiel) | CC0 |
+| `weapons/fire_sword.webp`, `ice_sword` (вырезаны из общего листа, уменьшены) | «FANTASY-sword-set», https://opengameart.org/content/fantasy-sword-set | Melissa Krautheim (melle) | CC0 (автор просит по желанию указать имя — указано в меню) |
+| `weapons/devil_mace.webp` (вырезана булава из картинки, убран фон) | «Mace "Devil Star"», https://opengameart.org/content/mace-devil-star | Hansjörg Malthaner, http://opengameart.org/users/varkalandar | CC-BY (автор и ссылка указаны в меню) |
+| `monsters/demon_fly.webp` (4 кадра × 8 направлений из листа) | «Demon — Flare sprite sheets», https://opengameart.org/content/demon-flare-sprite-sheets | ryandansie | CC0 |
+
 ## Оружие и логотип
 | Что | Файлы | Источник | Лицензия / статус |
 |---|---|---|---|

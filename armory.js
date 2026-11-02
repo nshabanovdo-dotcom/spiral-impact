@@ -12,14 +12,17 @@ const SLAV='"Ruslan Display",Georgia,serif';
 
 // ---------- Новое оружие ----------
 const NEW_W={
-  mech:{name:'Длинный меч',desc:'режет лезвием, длинный и быстрый',type:'melee',links:6,seg:17,mass:2.2,r:15,thr:380,k:0.0135,color:'#d8dde6',rgb:'216,221,230',price:1800},
-  krovmech:{name:'Кровавый клинок',desc:'лезвие пьёт кровь: лечит на 35%',type:'melee',links:6,seg:17,mass:2.4,r:15,thr:380,k:0.013,color:'#ff4a4a',rgb:'255,74,74',price:2800,fx:'leech'},
+  kosa:{name:'Коса жнеца',desc:'изогнутое лезвие режет широким махом',type:'melee',links:8,seg:17,mass:2.6,r:16,thr:380,k:0.0135,color:'#7ad8ff',rgb:'122,216,255',price:3200},
+  kopye:{name:'Небесное копьё',desc:'длинный выпад, колет остриём',type:'melee',links:5,seg:17,mass:2.0,r:14,thr:400,k:0.0145,color:'#9fe0ff',rgb:'159,224,255',price:2400},
+  chakram:{name:'Ангельский чакрам',desc:'вращающаяся звезда-лезвие',type:'melee',links:9,seg:17,mass:1.8,r:17,thr:420,k:0.0145,color:'#ffd88a',rgb:'255,216,138',price:2600},
+  mech:{name:'Тяжёлый меч',desc:'режет лезвием, длинный и быстрый',type:'melee',links:6,seg:17,mass:2.2,r:15,thr:380,k:0.0135,color:'#d8dde6',rgb:'216,221,230',price:1800},
+  krovmech:{name:'Огненный клинок',desc:'клинок из пламени: лечит на 35%',type:'melee',links:6,seg:17,mass:2.4,r:15,thr:380,k:0.013,color:'#ff4a4a',rgb:'255,74,74',price:2800,fx:'leech'},
   topor:{name:'Боевой топор',desc:'тяжёлая широкая секира',type:'melee',links:5,seg:17,mass:3.8,r:18,thr:320,k:0.0125,color:'#c8ccd6',rgb:'200,204,214',price:2200},
   bulava:{name:'Булава',desc:'надёжная, средний вес',type:'melee',links:6,seg:17,mass:2.8,r:16,thr:340,k:0.0128,color:'#b8c0cc',rgb:'184,192,204',price:900},
   zarya:{name:'Клинок зари',desc:'тесак с раскалённой кромкой, поджигает',type:'melee',links:6,seg:17,mass:2.6,r:16,thr:360,k:0.0125,color:'#ff9a3a',rgb:'255,154,58',price:3000,fx:'burn',sword:true},
   ametist:{name:'Аметистовый меч',desc:'клинок пустоты, лечит на 35% урона',type:'melee',links:7,seg:17,mass:2.0,r:15,thr:400,k:0.013,color:'#c070ff',rgb:'192,112,255',price:3500,fx:'leech',sword:true},
   yakor:{name:'Якорь бездны',desc:'очень тяжёлый, сносит с ног',type:'melee',links:5,seg:18,mass:4.6,r:21,thr:300,k:0.012,color:'#b07aff',rgb:'176,122,255',price:800},
-  kristall:{name:'Ледяной кристалл',desc:'замораживает врага',type:'melee',links:8,seg:17,mass:2.2,r:15,thr:380,k:0.013,color:'#8ff0ff',rgb:'143,240,255',price:1200,fx:'freeze'},
+  kristall:{name:'Ледяной клинок',desc:'замораживает врага',type:'melee',links:8,seg:17,mass:2.2,r:15,thr:380,k:0.013,color:'#8ff0ff',rgb:'143,240,255',price:1200,fx:'freeze'},
   cherep:{name:'Череп-кистень',desc:'лёгкий, очень длинная цепь',type:'melee',links:11,seg:17,mass:1.3,r:13,thr:480,k:0.017,color:'#d07aff',rgb:'208,122,255',price:1000},
   dushi:{name:'Сфера душ',desc:'лечит на 35% от урона',type:'melee',links:8,seg:17,mass:2.0,r:15,thr:400,k:0.012,color:'#7dffb0',rgb:'125,255,176',price:1500,fx:'leech'},
   kometa:{name:'Огненная комета',desc:'поджигает врага',type:'melee',links:7,seg:17,mass:2.4,r:16,thr:380,k:0.011,color:'#ff7a2a',rgb:'255,122,42',price:1100,fx:'burn'},

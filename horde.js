@@ -9,7 +9,7 @@ const A=()=>window.__armory;
 // ---------- Виды монстров ----------
 // r — радиус, hp — здоровье, sp — скорость, acc — разгон, mass — масса (отбрасывание), crack — цвет трещин
 const KIND={
-  obych:{name:'Порождение',r:19,hp:20,sp:150,acc:3,mass:1,crack:'255,110,40',bone:'#d8ccb4',flesh:['#3a2228','#120a0c'],coins:2,xp:6,grab:4},
+  obych:{name:'Демон',fl:'demon',r:19,hp:20,sp:150,acc:3,mass:1,crack:'255,110,40',bone:'#d8ccb4',flesh:['#3a2228','#120a0c'],coins:2,xp:6,grab:4},
   begun:{name:'Виверна',fl:'wyvern',r:15,hp:8,sp:330,acc:5,mass:0.6,crack:'90,220,255',bone:'#c8d0d8',flesh:['#22283a','#0a0c14'],coins:2,xp:5,grab:4},
   zdorov:{name:'Минотавр',fl:'minotaur',r:36,hp:110,sp:85,acc:1.6,mass:5,crack:'255,40,40',bone:'#e8dcc0',flesh:['#3a1a14','#100604'],coins:7,xp:20,shove:9},
   vzryv:{name:'Взрывун',r:21,hp:14,sp:190,acc:3,mass:0.8,crack:'150,255,60',bone:'#d0d8b0',flesh:['#26301a','#0a0e06'],coins:3,xp:8,boom:true},
@@ -18,7 +18,8 @@ const KIND={
 
 // ---------- Анимированные монстры из игры Flare (CC BY-SA 3.0, см. art/LICENSES.md) ----------
 // Атлас: 8 направлений (строки) × n кадров (столбцы); ax,ay — точка привязки (под ногами) в ячейке
-const FL={wyvern:{file:'wyvern_run',cw:154,ch:123,ax:74,ay:101,n:8,dur:533,size:6.2},
+const FL={demon:{file:'demon_fly',cw:219,ch:143,ax:120,ay:63,n:4,dur:450,size:6.5,center:true},
+  wyvern:{file:'wyvern_run',cw:154,ch:123,ax:74,ay:101,n:8,dur:533,size:6.2},
   minotaur:{file:'minotaur_run',cw:148,ch:129,ax:68,ay:104,n:8,dur:533,size:4.8},
   wyvern_fire:{file:'wyvern_fire_run',cw:220,ch:176,ax:105,ay:144,n:8,dur:533,size:4.4}};
 for(const k in FL){const f=FL[k],i=new Image();i.onload=()=>{f.ok=true};i.src=(window.__INLINE&&window.__INLINE['art/monsters/'+f.file+'.webp'])||'art/monsters/'+f.file+'.webp';f.im=i}
@@ -26,7 +27,7 @@ for(const k in FL){const f=FL[k],i=new Image();i.onload=()=>{f.ok=true};i.src=(w
 function flDir(a){return(4+Math.round(a/(Math.PI/4))+16)%8}
 function drawFlare(m){const f=FL[m.K.fl];if(!f||!f.ok)return false;const sc=m.r*f.size/f.cw;
   const a=m.grab?Math.atan2(player.body.y-m.y,player.body.x-m.x):Math.atan2(m.vy,m.vx),d=flDir(a),fr=Math.floor(((time*1000/f.dur)*f.n+m.jit*3))%f.n;
-  ctx.drawImage(f.im,fr*f.cw,d*f.ch,f.cw,f.ch,m.x-f.ax*sc,m.y+m.r*0.7-f.ay*sc,f.cw*sc,f.ch*sc);return true}
+  ctx.drawImage(f.im,fr*f.cw,d*f.ch,f.cw,f.ch,m.x-f.ax*sc,m.y+(f.center?0:m.r*0.7)-f.ay*sc,f.cw*sc,f.ch*sc);return true}
 // ---------- Спрайты монстров (рисуются один раз) ----------
 // Локально: пасть смотрит в +x. Отдельный слой свечения трещин рисуется поверх освещения сцены.
 function mrand(seed){let s=seed>>>0||1;return()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return(s>>>0)/4294967296}}
