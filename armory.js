@@ -414,7 +414,7 @@ function statRow(lbl,v){return `<div class="stat"><span>${lbl}</span><b><i style
 function renderArmory(){
   const L=levelOf(prof.xp),a=xpFor(L),b=xpFor(L+1);
   $('aLv').textContent='Уровень '+L;$('aXp').style.width=((prof.xp-a)/(b-a)*100)+'%';$('aCoins').textContent=prof.coins+' ◈';
-  $('aStats').textContent=`Побед: ${prof.wins} · поражений: ${prof.losses} · бойцов побеждено: ${prof.kills} · гибелей: ${prof.deaths} · урон: ${Math.round(prof.dmg)} · лучший удар: ${Math.round(prof.best)}`;
+  $('aStats').textContent=`Нашествие: рекорд — волна ${prof.hordeBest||0} · Побед: ${prof.wins} · поражений: ${prof.losses} · бойцов побеждено: ${prof.kills} · гибелей: ${prof.deaths} · урон: ${Math.round(prof.dmg)} · лучший удар: ${Math.round(prof.best)}`;
   $('aSlots').innerHTML=prof.loadout.map((id,i)=>`<div class="slot${i===activeSlot?' act':''}" data-slot="${i}">Слот ${i+1} (клавиша ${i+1})<small>${WEAPONS[id].name}</small></div>`).join('');
   $('aSlots').querySelectorAll('.slot').forEach(el=>el.onclick=()=>{activeSlot=+el.dataset.slot;renderArmory()});
   const grid=$('aGrid');grid.innerHTML='';
@@ -539,5 +539,5 @@ render=function(dt){
     const t='Оружие выбито · вернётся через '+player.disarmT.toFixed(1);ctx.strokeText(t,VW/2,VH-90);ctx.fillStyle='#ff8a6a';ctx.fillText(t,VW/2,VH-90)}
 };
 
-window.__armory={prof,ACH,levelOf,renderArmory,openArmory,bag:()=>BAG};
+window.__armory={prof,ACH,levelOf,renderArmory,openArmory,bag:()=>BAG,reward,checkAch,save,bigNums,toasts,mult};
 })();
