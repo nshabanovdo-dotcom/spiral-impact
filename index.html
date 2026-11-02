@@ -53,7 +53,7 @@ b{color:#e9d8ae;font-weight:600}
 <script>
 'use strict';
 // Версию повышать при каждом изменении игры и записывать в CHANGELOG.md
-const VERSION='0.8';
+const VERSION='0.9';
 // Набор оружия на клавишах 1/2/3 — его задаёт склад оружия (armory.js)
 function LOADOUT(){return window.getLoadout?window.getLoadout():['gira','shar','posoh']}
 document.title='Spiral Impact v'+VERSION;document.getElementById('ver').textContent='v'+VERSION;
@@ -90,6 +90,7 @@ const TEAMC={blue:'#5aa8ff',red:'#ff5262'};
 const WEAPONS={
   gira:{name:'Рунная гиря',desc:'тяжёлая, короткая цепь',type:'melee',links:6,seg:17,mass:3.2,r:19,thr:320,k:0.013,color:'#6fd8ff',rgb:'111,216,255'},
   shar:{name:'Шар молний',desc:'лёгкий, длинная цепь',type:'melee',links:9,seg:17,mass:1.7,r:14,thr:420,k:0.014,color:'#8fb0ff',rgb:'143,176,255'},
+  sekira:{name:'Цепь-секира',desc:'длинная цепь из лезвий, бьёт молнией',type:'melee',links:11,seg:16,mass:2.1,r:16,thr:420,k:0.015,color:'#7ad0ff',rgb:'122,208,255'},
   posoh:{name:'Огненный посох',desc:'стреляет огнём',type:'ranged',links:4,seg:16,mass:1.1,r:12,thr:520,k:0.01,color:'#ff8a2a',rgb:'255,138,42',cost:24,rate:0.28,regen:32,projSpeed:620,projDmg:12}
 };
 // Морды — реалистичные головы из assets/ (фон вырезан). cx,cy — центр черепа на картинке, fw — ширина черепа без ушей (px).
@@ -202,9 +203,9 @@ function startGame(){
   if(mode==='train'){
     [{x:1500,y:520},{x:1900,y:800},{x:1500,y:1080}].forEach((a,i)=>fighters.push(new Fighter({name:'Манекен '+(i+1),team:'red',skin:i+3,kind:'dummy',anchor:a})));
   }else if(mode==='duel'){
-    fighters.push(new Fighter({name:nm(),team:'red',skin:Math.random()*SKINS.length|0,weapon:pick(['gira','shar','posoh']),kind:'bot',diff:df}));
+    fighters.push(new Fighter({name:nm(),team:'red',skin:Math.random()*SKINS.length|0,weapon:pick(['gira','shar','posoh','sekira']),kind:'bot',diff:df}));
   }else{
-    const ws=['gira','gira','shar','shar','posoh'];
+    const ws=['gira','gira','shar','shar','posoh','sekira'];
     for(let i=0;i<3;i++)fighters.push(new Fighter({name:nm(),team:'blue',skin:Math.random()*SKINS.length|0,weapon:pick(ws),kind:'bot',diff:df}));
     for(let i=0;i<4;i++)fighters.push(new Fighter({name:nm(),team:'red',skin:Math.random()*SKINS.length|0,weapon:pick(ws),kind:'bot',diff:df}));
   }
@@ -512,7 +513,20 @@ function drawMordaGlow(c,x,y,r,si,lx,ly,hurt,tilt,squash,alpha){
 
 
 // ---------- Рисование мира ----------
+// лезвие секиры: двойной полумесяц поперёк направления (локальная ось y — вдоль цепи)
+function axeBlade(c,r,hi){const p=new Path2D(),sw=r*0.35; // sw — концы лезвий скошены назад, вдоль цепи
+  for(const sd of[-1,1]){p.moveTo(sd*r*0.12,-r*0.3);p.quadraticCurveTo(sd*r*0.55,-r*0.45,sd*r*1.05,-r*0.95+sw);
+    p.quadraticCurveTo(sd*r*1.85,-r*0.05+sw*0.5,sd*r*1.05,r*0.95+sw);p.quadraticCurveTo(sd*r*0.75,r*0.25+sw*0.5,sd*r*0.12,r*0.3);p.closePath()}
+  const g=c.createLinearGradient(-r*1.6,-r,r*1.6,r);g.addColorStop(0,'#f2f5fa');g.addColorStop(0.3,'#9aa3b4');g.addColorStop(0.5,'#4a505c');g.addColorStop(0.72,'#c8d0dc');g.addColorStop(1,'#5a6070');
+  c.fillStyle=g;c.fill(p);c.strokeStyle='rgba(0,0,0,0.7)';c.lineWidth=Math.max(0.7,r*0.07);c.stroke(p);
+  c.strokeStyle=hi||'rgba(190,230,255,0.75)';c.lineWidth=Math.max(0.6,r*0.06);for(const sd of[-1,1]){c.beginPath();c.moveTo(sd*r*1.1,-r*0.85+sw);c.quadraticCurveTo(sd*r*1.72,-r*0.05+sw*0.5,sd*r*1.1,r*0.85+sw);c.stroke()}
+  const sg=c.createLinearGradient(-r*0.2,0,r*0.2,0);sg.addColorStop(0,'#2a2e36');sg.addColorStop(0.5,'#aab2c0');sg.addColorStop(1,'#1c1f26');c.fillStyle=sg;c.fillRect(-r*0.18,-r*0.75,r*0.36,r*1.5);
+  c.fillStyle='#e8ecf2';c.beginPath();c.arc(0,-r*0.35,r*0.11,0,7);c.arc(0,r*0.35,r*0.11,0,7);c.fill()}
+function drawSekiraChain(f){const ch=f.chain;let k=0;
+  for(let i=0;i<ch.length-1;i++){const a=ch[i],b=ch[i+1],dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy),n=Math.max(1,Math.round(L/8)),ang=Math.atan2(dy,dx);
+    for(let j=0;j<n;j++,k++){const t=(j+0.5)/n;ctx.save();ctx.translate(a.x+dx*t,a.y+dy*t);ctx.rotate(ang-Math.PI/2);axeBlade(ctx,6.2);ctx.restore()}}}
 function drawChain(f){
+  if(f.weaponId==='sekira')return drawSekiraChain(f);
   const ch=f.chain,brass=f.weaponId==='posoh',dark=brass?'#3a2610':'#1c1e25',lite=brass?'#d8a650':'#9aa1b2';
   let k=0;
   for(let i=0;i<ch.length-1;i++){
@@ -539,6 +553,8 @@ function drawHeadBase(f){
     ctx.save();ctx.rotate(f.spin);ctx.strokeStyle='rgba(0,0,0,0.55)';ctx.lineWidth=2.4;ctx.beginPath();ctx.arc(0,0,r*0.62,0,7);ctx.stroke();
     ctx.beginPath();for(let i=0;i<4;i++){const a=i*Math.PI/2;ctx.moveTo(Math.cos(a)*r*0.25,Math.sin(a)*r*0.25);ctx.lineTo(Math.cos(a+0.6)*r*0.52,Math.sin(a+0.6)*r*0.52)}ctx.stroke();ctx.restore();
     ctx.fillStyle='rgba(255,255,255,0.55)';ctx.beginPath();ctx.ellipse(-r*0.38,-r*0.42,r*0.18,r*0.1,-0.7,0,7);ctx.fill();
+  }else if(f.weaponId==='sekira'){
+    const l=f.links[f.links.length-1]||f.body;ctx.rotate(Math.atan2(h.y-l.y,h.x-l.x)-Math.PI/2);axeBlade(ctx,r*0.95);
   }else if(f.weaponId==='shar'){
     const g=ctx.createRadialGradient(0,0,0,0,0,r);g.addColorStop(0,'#2a3a6a');g.addColorStop(1,'#080a14');ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.fill();
     for(let k=0;k<3;k++){ctx.save();ctx.rotate(k*Math.PI/3);const sx=Math.abs(Math.cos(f.spin*1.3+k*1.1))*0.95+0.05;ctx.scale(sx,1);
@@ -553,7 +569,10 @@ function drawHeadBase(f){
 function drawHeadGlow(f){
   const h=f.head,r=h.r,w=f.W,dg=headDanger(f);ctx.save();ctx.translate(h.x,h.y);
   if(dg>0){const g=ctx.createRadialGradient(0,0,0,0,0,r*2.6);g.addColorStop(0,`rgba(${w.rgb},${dg*0.45})`);g.addColorStop(1,`rgba(${w.rgb},0)`);ctx.fillStyle=g;ctx.fillRect(-r*2.6,-r*2.6,r*5.2,r*5.2)}
-  if(f.weaponId==='gira'){
+  if(f.weaponId==='sekira'){
+    ctx.restore();drawLightning(f,dg);ctx.save();ctx.translate(h.x,h.y);
+    const g=ctx.createRadialGradient(0,0,0,0,0,r*2.2);g.addColorStop(0,`rgba(150,220,255,${0.35+dg*0.5})`);g.addColorStop(1,'rgba(60,150,255,0)');ctx.fillStyle=g;ctx.fillRect(-r*2.2,-r*2.2,r*4.4,r*4.4);
+  }else if(f.weaponId==='gira'){
     ctx.rotate(f.spin);ctx.strokeStyle=`rgba(${w.rgb},${0.35+dg*0.65})`;ctx.lineWidth=1.4;ctx.beginPath();ctx.arc(0,0,r*0.62,0,7);ctx.stroke();
     ctx.beginPath();for(let i=0;i<4;i++){const a=i*Math.PI/2;ctx.moveTo(Math.cos(a)*r*0.25,Math.sin(a)*r*0.25);ctx.lineTo(Math.cos(a+0.6)*r*0.52,Math.sin(a+0.6)*r*0.52)}ctx.stroke();
   }else if(f.weaponId==='shar'){
@@ -568,6 +587,13 @@ function drawHeadGlow(f){
   }
   ctx.restore();
 }
+// молнии вдоль цепи секиры: ломаные голубые разряды, чем быстрее — тем больше
+function drawLightning(f,dg){const ch=f.chain;ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
+  const n=2+Math.round(dg*4);for(let k=0;k<n;k++){const i0=1+(Math.random()*(ch.length-2)|0),len=2+(Math.random()*3|0);
+    ctx.beginPath();for(let i=i0;i<Math.min(ch.length,i0+len);i++){const p=ch[i];ctx.lineTo(p.x+rnd(-7,7),p.y+rnd(-7,7))}
+    ctx.strokeStyle='rgba(90,170,255,0.35)';ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='rgba(210,240,255,0.9)';ctx.lineWidth=1.2;ctx.stroke()}
+  for(const p of ch){if(Math.random()<0.25+dg*0.3){const a=Math.random()*6.283,l=rnd(5,14);ctx.strokeStyle='rgba(170,225,255,0.8)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+Math.cos(a)*l*0.5+rnd(-3,3),p.y+Math.sin(a)*l*0.5+rnd(-3,3));ctx.lineTo(p.x+Math.cos(a)*l,p.y+Math.sin(a)*l);ctx.stroke()}}
+  ctx.restore()}
 function drawTrail(f){
   const tr=f.trail,w=f.W;if(tr.length<6)return;const[vx,vy]=vel(f.head),hs=Math.hypot(vx,vy);if(hs<w.thr*0.7)return;
   const a=clamp((hs-w.thr*0.7)/1500,0,1);ctx.lineCap='round';

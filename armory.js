@@ -21,7 +21,7 @@ const NEW_W={
 };
 Object.assign(WEAPONS,NEW_W);
 const BASE=['gira','shar','posoh'];
-const ALL=[...BASE,...Object.keys(NEW_W)];
+const ALL=[...BASE,'sekira',...Object.keys(NEW_W)];
 
 // ---------- Достижения ----------
 const ACH=[
@@ -48,7 +48,8 @@ const KEY='spiral_profile_v1';
 function defaults(){return{xp:0,coins:0,coinF:0,kills:0,deaths:0,wins:0,losses:0,dmg:0,best:0,bag10:0,owned:[...BASE],ach:{},loadout:[...BASE]}}
 function load(){try{const p=JSON.parse(localStorage.getItem(KEY));if(p&&p.owned)return Object.assign(defaults(),p)}catch(e){}return defaults()}
 const prof=load();
-prof.owned=prof.owned.filter(id=>WEAPONS[id]);prof.loadout=prof.loadout.map(id=>prof.owned.includes(id)?id:'gira');
+prof.owned=prof.owned.filter(id=>WEAPONS[id]);if(!prof.owned.includes('sekira'))prof.owned.push('sekira'); // цепь-секира доступна сразу
+prof.loadout=prof.loadout.map(id=>prof.owned.includes(id)?id:'gira');
 let saveT=0;function save(){clearTimeout(saveT);saveT=setTimeout(()=>localStorage.setItem(KEY,JSON.stringify(prof)),300)}
 const xpFor=l=>100*(l-1)*l/2;
 const levelOf=xp=>{let l=1;while(xp>=xpFor(l+1))l++;return l};
@@ -200,6 +201,7 @@ function drawIcon(cnv,id){
   for(let y=4,k=0;y<cy-r-4;y+=7,k++){c.beginPath();if(k%2)c.moveTo(cx,y-3),c.lineTo(cx,y+3);else c.ellipse(cx,y,2.4,4,0,0,7);c.stroke()}
   c.save();c.translate(cx,cy);
   if(HD[id]){c.save();HD[id].base(c,r,0.4,Math.PI/2);c.restore();c.globalCompositeOperation='lighter';c.save();HD[id].glow(c,r,0.4,Math.PI/2,0.3);c.restore()}
+  else if(id==='sekira'){c.save();c.rotate(0);axeBlade(c,r*0.9);c.restore()}
   else ICON[id](c,r);
   c.restore();
 }
