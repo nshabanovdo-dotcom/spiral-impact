@@ -472,6 +472,7 @@ ACH.push({id:'disarm10',name:'Разоружитель',desc:'Выбить ор�
 const canDisarm=f=>f.kind!=='bag'&&f.kind!=='dummy'&&!(f.disarmT>0)&&!(f.rearmT>time);
 function disarm(loser,winner){
   const h=loser.head,id=loser.weaponId,w=WEAPONS[id];
+  if(loser.hookT>0){loser.hookT=0;h.im=1/w.mass}
   const[hvx,hvy]=vel(h),dx=h.x-winner.head.x,dy=h.y-winner.head.y,dl=Math.hypot(dx,dy)||1;
   setVel(h,hvx+dx/dl*500,hvy+dy/dl*500-200);
   loose.push({weaponId:id,W:w,links:loser.links,head:h,chain:[...loser.links,h],body:loser.links[0]||h,spin:loser.spin,energy:loser.energy,trail:[],life:DISARM_TIME});

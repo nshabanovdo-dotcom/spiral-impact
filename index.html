@@ -55,7 +55,7 @@ b{color:#e9d8ae;font-weight:600}
 <script>
 'use strict';
 // Версию повышать при каждом изменении игры и записывать в CHANGELOG.md
-const VERSION='1.5';
+const VERSION='1.6';
 // Набор оружия на клавишах 1/2/3 — его задаёт склад оружия (armory.js)
 function LOADOUT(){return window.getLoadout?window.getLoadout():['gira','shar','posoh']}
 document.title='Spiral Impact v'+VERSION;document.getElementById('ver').textContent='v'+VERSION;
@@ -239,7 +239,7 @@ class Fighter{
     this.buildWeapon();
   }
   buildWeapon(){
-    const w=this.W,b=this.body;this.links=[];this.head=null;this.chain=[b];this.trail=[];
+    const w=this.W,b=this.body;this.links=[];this.head=null;this.chain=[b];this.trail=[];this.hookT=0;this.bDir=undefined;this.bOm=0;
     if(!w)return;
     for(let i=1;i<=w.links;i++)this.links.push(P(b.x,b.y+i*w.seg,LINK_M,4));
     this.head=P(b.x,b.y+(w.links+1)*w.seg,w.mass,w.r);
@@ -396,6 +396,38 @@ function fire(f){
 }
 
 // ---------- Бой ----------
+// ---------- Форма оружия (этап 4) ----------
+// Обычное оружие — круг на конце цепи. Мечи режут отрезком-лезвием, молот бьёт широкой капсулой,
+// у цепи-секиры ранят и лезвия на цепи. Направление оружия — от последнего звена к голове.
+const SHAPE={zarya:{kind:'blade',len:4.35,w:0.6,edge:1},ametist:{kind:'blade',len:4.4,w:0.55,edge:0},molot:{kind:'hammer',half:1.2,w:0.65}};
+function wDir(f){const h=f.head,l=f.links[f.links.length-1]||f.body;return Math.atan2(h.y-l.y,h.x-l.x)}
+function segHit(A,B,P0x,P0y,P1x,P1y,rad,shape){
+  const b=B.body,ex=P1x-P0x,ey=P1y-P0y,L2=ex*ex+ey*ey||1;let t=((b.x-P0x)*ex+(b.y-P0y)*ey)/L2;t=clamp(t,0,1);
+  const cx=P0x+ex*t,cy=P0y+ey*t,dx=b.x-cx,dy=b.y-cy,d=Math.hypot(dx,dy),rr=rad+b.r;if(d>=rr)return;
+  const nx=dx/(d||1),ny=dy/(d||1),h=A.head,[hvx,hvy]=vel(h),om=A.bOm||0,rx=cx-h.x,ry=cy-h.y;
+  const vcx=hvx-ry*om,vcy=hvy+rx*om,[bvx,bvy]=vel(b);let s=(vcx-bvx)*nx+(vcy-bvy)*ny; // скорость точки лезвия в сторону цели
+  const push=rr-d;movePos(b,nx*push*0.8,ny*push*0.8);
+  if(s<=0)return;
+  setVel(b,bvx+nx*s*0.35,bvy+ny*s*0.35);setVel(h,hvx*0.92,hvy*0.92);
+  let k=1;if(shape.kind==='blade'){const a=A.bDir,sx=Math.sin(a),sy=-Math.cos(a),side=nx*sx+ny*sy; // side>0 — сторона кромки
+    if(t>0.92)k=0.9;else if(shape.edge&&side<0.3)k=0.45;else if(!shape.edge&&Math.abs(side)<0.3)k=0.45}
+  if(A.team!==B.team)hit(A,B,Math.min(s,Math.hypot(vcx,vcy))*k,{x:cx,y:cy});
+}
+function shapedHits(A,B){const sh=SHAPE[A.weaponId];if(!sh||!A.head)return false;const h=A.head,r=h.r,a=A.bDir??wDir(A),ux=Math.cos(a),uy=Math.sin(a);
+  if(sh.kind==='blade'){const L=sh.len*r;segHit(A,B,h.x-ux*r*0.3,h.y-uy*r*0.3,h.x+ux*L,h.y+uy*L,sh.w*r,sh)}
+  else{const px=-uy,py=ux,H=sh.half*r;segHit(A,B,h.x-px*H,h.y-py*H,h.x+px*H,h.y+py*H,sh.w*r,sh)}
+  return true}
+// точки-круги, которыми оружие задевает цели (для режима «Нашествие»)
+function weaponPoints(f){const h=f.head;if(!h)return[];const sh=SHAPE[f.weaponId];if(!sh)return[[h.x,h.y,h.r]];
+  const r=h.r,a=f.bDir??wDir(f),ux=Math.cos(a),uy=Math.sin(a);
+  if(sh.kind==='blade')return[0.15,0.45,0.75,0.95].map(t=>[h.x+ux*sh.len*r*t,h.y+uy*sh.len*r*t,sh.w*r*1.2]);
+  return[-0.8,0,0.8].map(t=>[h.x-uy*sh.half*r*t,h.y+ux*sh.half*r*t,sh.w*r*1.3])}
+// лезвия цепи-секиры: небольшой урон звеньями
+function chainBladeHits(A,B){if(A.weaponId!=='sekira'||A.team===B.team)return;const b=B.body;
+  if((A.hitCd['c'+B.id]||0)>time)return;
+  for(let i=1;i<A.links.length;i+=2){const l=A.links[i],dx=b.x-l.x,dy=b.y-l.y,rr=b.r+7;if(dx*dx+dy*dy>=rr*rr)continue;
+    const s=ownSpeed(l,b);if(s<380)continue;A.hitCd['c'+B.id]=time+0.35;const dmg=clamp((s-380)*0.012,3,10);
+    damage(B,dmg,A,(l.x+b.x)/2,(l.y+b.y)/2);const[bvx,bvy]=vel(b),d=Math.hypot(dx,dy)||1;setVel(b,bvx+dx/d*120,bvy+dy/d*120);return}}
 function ownSpeed(h,b){const[vx,vy]=vel(h),dx=b.x-h.x,dy=b.y-h.y,d=Math.hypot(dx,dy)||1;return Math.max(0,(vx*dx+vy*dy)/d)}
 function interact(A,B){
   if(!A.alive||!B.alive)return;
@@ -403,8 +435,9 @@ function interact(A,B){
   const en=A.team!==B.team;
   // сила удара — собственная скорость оружия в сторону цели (не скорость сближения):
   // висящее оружие не ранит того, кто на него налетел
-  if(A.head){const o=ownSpeed(A.head,B.body),s=collide(A.head,B.body,0.55);if(s>0&&en)hit(A,B,Math.min(s,o),A.head)}
-  if(B.head&&A.alive&&B.alive){const o=ownSpeed(B.head,A.body),s=collide(B.head,A.body,0.55);if(s>0&&en)hit(B,A,Math.min(s,o),B.head)}
+  if(A.head&&!shapedHits(A,B)){const o=ownSpeed(A.head,B.body),s=collide(A.head,B.body,0.55);if(s>0&&en)hit(A,B,Math.min(s,o),A.head)}
+  if(B.head&&A.alive&&B.alive&&!shapedHits(B,A)){const o=ownSpeed(B.head,A.body),s=collide(B.head,A.body,0.55);if(s>0&&en)hit(B,A,Math.min(s,o),B.head)}
+  if(A.alive&&B.alive){chainBladeHits(A,B);if(A.alive&&B.alive)chainBladeHits(B,A)}
   if(A.head&&B.head&&A.alive&&B.alive){const s=collide(A.head,B.head,0.8);
     if(s>250){const x=(A.head.x+B.head.x)/2,y=(A.head.y+B.head.y)/2;sparks(x,y,8+s/120|0,s*0.6);addP({type:'flash',x,y,life:0.12,max:0.12,size:30+s/40,rgb:'255,240,200'});sfx('clash',Math.min(1,s/1500));
       if((A===player||B===player)&&s>700)hitStop=Math.max(hitStop,0.03)}}
@@ -473,6 +506,8 @@ function tick(f){
   const w=f.W;if(w&&w.type==='ranged')f.energy=Math.min(100,f.energy+w.regen*DT);
   if(f.kind==='dummy'&&time-f.lastHitT>2)f.hp=Math.min(f.maxHp,f.hp+60*DT);
   const b=f.body,[bvx,bvy]=vel(b);f.tilt+=(clamp(bvx/2400,-0.35,0.35)-f.tilt)*0.08;
+  if(f.head){const a=wDir(f);if(f.bDir!==undefined)f.bOm=Math.atan2(Math.sin(a-f.bDir),Math.cos(a-f.bDir))/DT;f.bDir=a;
+    if(f.hookT>0){f.hookT-=DT;const h=f.head;h.x=h.px=f.hookX;h.y=h.py=f.hookY;if(f.hookT<=0){h.im=1/f.W.mass;f.hookCd=time+1.2}}}
   if(f.head){
     const h=f.head,[hvx,hvy]=vel(h),rx=h.x-b.x,ry=h.y-b.y;
     f.spin+=(rx*(hvy-bvy)-ry*(hvx-bvx))/(rx*rx+ry*ry+1)*DT;
@@ -492,6 +527,9 @@ function step(){
   for(const f of alive){
     bounds(f.body,0.5);for(const l of f.links)bounds(l,0.4);pillars(f.body);
     if(f.head){const hs=Math.max(bounds(f.head,0.45),pillars(f.head));
+      // якорь цепляется за стену или камень на 1 с: цепь натягивается, можно раскачиваться
+      if(f.weaponId==='yakor'&&hs>450&&!(f.hookT>0)&&!((f.hookCd||0)>time)){f.hookT=1;f.hookX=f.head.x;f.hookY=f.head.y;f.head.im=0;
+        addP({type:'ring',x:f.head.x,y:f.head.y,life:0.3,max:0.3,size:10,grow:200,rgb:'176,122,255'});sfx('clash',0.6)}
       if(hs>600){sparks(f.head.x,f.head.y,hs/150|0,hs*0.4);for(let i=0;i<3;i++)addP({type:'smoke',x:f.head.x,y:f.head.y,vx:rnd(-60,60),vy:rnd(-60,20),life:0.7,max:0.7,size:8,grow:35,drag:0.94,color:'70,64,80'});sfx('thud',Math.min(1,hs/2000))}}
   }
   for(let i=0;i<alive.length;i++)for(let j=i+1;j<alive.length;j++)interact(alive[i],alive[j]);

@@ -202,13 +202,13 @@ window.hordeStep=function(){
     // оружие игрока ↔ монстры: голова оружия режет толпу и задевает многих за оборот
     const h=player.head,w=player.W;
     if(h&&w){const[hvx,hvy]=vel(h),hs=Math.hypot(hvx,hvy),thr=w.thr*0.55;
-      if(hs>thr)near(h.x,h.y,h.r+80,m=>{if(!m.alive||m.hitCd>0)return;const dx=m.x-h.x,dy=m.y-h.y,rr=h.r+m.r,d2=dx*dx+dy*dy;if(d2>=rr*rr)return;const d=Math.sqrt(d2)||1;
+      if(hs>thr)for(const[px,py,pr]of weaponPoints(player))near(px,py,pr+80,m=>{if(!m.alive||m.hitCd>0)return;const dx=m.x-px,dy=m.y-py,rr=pr+m.r,d2=dx*dx+dy*dy;if(d2>=rr*rr)return;const d=Math.sqrt(d2)||1;
         const own=Math.max(hs*0.5,(hvx*dx+hvy*dy)/d);if(own<thr)return;
         const dmg=Math.min(120,(own-w.thr*0.4)*w.mass*w.k*1.4);m.hitCd=0.25;
         hurtMon(m,dmg,dx/d,dy/d,'weapon');if(dmg>20&&parts.length<900){sparks((m.x+h.x)/2,(m.y+h.y)/2,4,300)}
         // тяжёлые цели тормозят оружие, мелочь — почти нет
         const slow=m.K.mass>=5?0.75:0.96;setVel(h,hvx*slow,hvy*slow);
-        if(m.K.mass>=5){h.x-=dx/d*(rr-d);h.y-=dy/d*(rr-d)}
+        if(m.K.mass>=5&&px===h.x){h.x-=dx/d*(rr-d);h.y-=dy/d*(rr-d)}
         if(w.fx==='leech')player.hp=Math.min(player.maxHp,player.hp+dmg*0.15);
       })}
     // звенья быстро вращающейся цепи сбивают мелочь и стряхивают схвативших
