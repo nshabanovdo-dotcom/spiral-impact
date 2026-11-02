@@ -52,7 +52,7 @@ b{color:#e9d8ae;font-weight:600}
 <script>
 'use strict';
 // Версию повышать при каждом изменении игры и записывать в CHANGELOG.md
-const VERSION='0.4';
+const VERSION='0.5';
 document.title='Spiral Impact v'+VERSION;document.getElementById('ver').textContent='v'+VERSION;
 const cv=document.getElementById('game');const ctx=cv.getContext('2d');
 const lightCv=document.createElement('canvas'),lctx=lightCv.getContext('2d');const LS=0.5;
@@ -81,17 +81,18 @@ const WEAPONS={
   shar:{name:'Шар молний',desc:'лёгкий, длинная цепь',type:'melee',links:9,seg:17,mass:1.7,r:14,thr:420,k:0.014,color:'#8fb0ff',rgb:'143,176,255'},
   posoh:{name:'Огненный посох',desc:'стреляет огнём',type:'ranged',links:4,seg:16,mass:1.1,r:12,thr:520,k:0.01,color:'#ff8a2a',rgb:'255,138,42',cost:24,rate:0.28,regen:32,projSpeed:620,projDmg:12}
 };
-const SKIN_BASE={crown:1.18,wide:0.94,jaw:0.5,chin:1.0,ears:'point',earLen:1,ex:0.36,ey:-0.1,er:0.22,lidT:0.85,lidB:0.55,eyeTilt:0.08,irisR:0.5,
-  sclera:'#f2ece4',iris:'#3f8fe0',iris2:'#9fd4ff',irisDark:'#0c2a5a',glowEyes:false,pupil:true,slit:false,
-  mouthY:0.56,mouthW:0.25,frown:0,lipU:0.065,lipL:0.085,lip:'#a8645a',socket:0.4,earIn:'150,50,40',glow:null};
+// Морды — реалистичные головы из assets/ (фон вырезан). cx,cy — центр черепа на картинке, fw — ширина черепа без ушей (px).
+// glow: есть картинка *_glow.webp со светящимися частями; eyes — глаза для ореола.
 const SKINS=[
-  {name:'Сапфир',deco:'circuit',body:'#e6d2b6',light:'#fff6e6',dark:'#6e5040',paint:'#4f86d8',eye:'#5aa8ff',glow:'120,230,255',blood:'#5ab0ff',rim:'170,210,255'},
-  {name:'Магма',deco:'magma',body:'#2c44a8',light:'#6a8ae8',dark:'#060a28',eye:'#ff8a1a',glow:'255,130,30',glowEyes:true,sclera:'#ff9a2a',iris:'#ffc040',iris2:'#fff0b0',irisDark:'#c04000',lip:'#1c2a70',blood:'#ff7a1a',rim:'90,200,255',earIn:'255,90,40',wide:0.9,jaw:0.46,crown:1.22,socket:0.5},
-  {name:'Старейшина',deco:'wrinkles',body:'#cbbcae',light:'#f2e8dc',dark:'#4a3632',eye:'#7fd8e0',iris:'#6ab8c4',iris2:'#c8f2f4',irisDark:'#1e4a52',ears:'round',crown:1.06,wide:1.04,jaw:0.66,chin:0.98,er:0.25,lidT:1.15,lidB:0.95,irisR:0.46,eyeTilt:-0.05,frown:0.07,lip:'#c87a64',lipU:0.06,lipL:0.11,mouthW:0.27,blood:'#9ad0c8',rim:'200,230,255',socket:0.55},
-  {name:'Нефрит',deco:'kintsugi',body:'#3f8a6c',light:'#8ad2b0',dark:'#0a2a1e',eye:'#ffc240',glow:'255,200,80',iris:'#e0a020',iris2:'#fff0a0',irisDark:'#5a3000',lip:'#2a5a46',blood:'#ffd060',rim:'180,255,220',earLen:1.3},
-  {name:'Пепел',deco:'runes',body:'#7e7690',light:'#c4bcd4',dark:'#1a1626',eye:'#c49aff',glow:'190,140,255',glowEyes:true,sclera:'#e8dcff',iris:'#d4b8ff',iris2:'#ffffff',irisDark:'#7a4ad0',pupil:false,lip:'#4a3e5a',blood:'#b080ff',rim:'200,170,255',crown:1.26,wide:0.88,jaw:0.42},
-  {name:'Багрец',deco:'warpaint',body:'#8e2a26',light:'#d0645a',dark:'#22060a',eye:'#ffd23a',paint:'#efe6d6',iris:'#f0c020',iris2:'#fff4a0',irisDark:'#6a3a00',slit:true,lip:'#4a0e10',blood:'#ff3a2a',rim:'255,170,120',earLen:1.5,frown:0.03}
-].map(s=>Object.assign({},SKIN_BASE,s));
+  {name:'Сапфир',file:'sapfir',cx:144,cy:165,fw:215,eye:'#5aa8ff',blood:'#5ab0ff',dark:'#6e5040',rim:'170,210,255'},
+  {name:'Магма',file:'magma',cx:148,cy:168,fw:205,glow:true,eyes:[[130.6,175.8],[224.5,175.8]],eye:'#ff8a1a',blood:'#ff7a1a',dark:'#060a28',rim:'90,200,255'},
+  {name:'Старейшина',file:'stareishina',cx:165,cy:190,fw:260,eye:'#7fd8e0',blood:'#9ad0c8',dark:'#4a3632',rim:'200,230,255'},
+  {name:'Рубин',file:'rubin',cx:144,cy:165,fw:215,eye:'#ff5a6a',blood:'#ff3a4a',dark:'#5a2a2a',rim:'255,170,180'},
+  {name:'Багрец',file:'bagrec',cx:148,cy:168,fw:205,glow:true,eyes:[[130.6,175.8],[224.5,175.8]],eye:'#3affc0',blood:'#ff2a4a',dark:'#2a0410',rim:'120,255,220'},
+  {name:'Болотник',file:'bolotnik',cx:165,cy:190,fw:260,eye:'#b48aff',blood:'#8aff5a',dark:'#1a3010',rim:'200,255,160'}
+];
+const FACE=2.25; // ширина черепа на экране = FACE * радиус тела
+for(const S of SKINS)S.crown=S.cy*FACE/S.fw;
 const BOT_NAMES=['Ворчун','Хрыч','Бука','Злыдень','Шиш','Кикимор','Упырёк','Лихо','Хмырь','Жмых','Брюзга','Сморчок','Грымза','Дрын'];
 
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -432,190 +433,28 @@ const arenaCv=document.createElement('canvas');arenaCv.width=AW;arenaCv.height=A
 })();
 
 // ---------- Морды: спрайты ----------
-// Инопланетные головы: яйцевидный череп, острые уши, реалистичные глаза, нос и губы.
-// Каждая морда = спрайт кожи (освещается сценой) + спрайт свечения (узоры, трещины; рисуется аддитивно).
-const SR=80,SS=380,SCX=190,SCY=190;
-function srand(seed){let s=seed>>>0;return()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
-function eyePos(S,r){return[[-S.ex*r,S.ey*r,S.er*r],[S.ex*r,S.ey*r,S.er*r]]}
-function headPath(S,R){const p=new Path2D(),c=S.crown*R,w=S.wide*R,j=S.jaw*R,ch=S.chin*R;
-  p.moveTo(0,-c);p.bezierCurveTo(w*0.62,-c,w,-c*0.62,w,-R*0.15);p.bezierCurveTo(w*0.97,R*0.3,j*1.12,R*0.66,j,ch*0.86);
-  p.bezierCurveTo(j*0.5,ch*1.05,-j*0.5,ch*1.05,-j,ch*0.86);p.bezierCurveTo(-j*1.12,R*0.66,-w*0.97,R*0.3,-w,-R*0.15);p.bezierCurveTo(-w,-c*0.62,-w*0.62,-c,0,-c);p.closePath();return p}
-function rgbA(h,a){return`rgba(${hexRgb(h)},${a})`}
-function radial(x,cx,cy,r0,r1,stops){const g=x.createRadialGradient(cx,cy,r0,cx,cy,r1);for(const[t,c]of stops)g.addColorStop(t,c);x.fillStyle=g;x.fillRect(cx-r1,cy-r1,r1*2,r1*2)}
-function poly(x,pts){x.beginPath();pts.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]))}
-// случайная трещина с ответвлениями
-function crack(rand,out,x0,y0,ang,len,segs,depth){const pts=[[x0,y0]];let x=x0,y=y0,a=ang;const st=len/segs;
-  for(let i=0;i<segs;i++){a+=(rand()-0.5)*1.1;x+=Math.cos(a)*st;y+=Math.sin(a)*st;pts.push([x,y]);
-    if(depth<2&&rand()<0.3)crack(rand,out,x,y,a+(rand()<.5?-1:1)*(0.6+rand()*0.6),len*0.45,Math.max(2,segs/2|0),depth+1)}
-  out.push({pts,w:depth?0.6:1})}
-// светящиеся линии: в спрайт кожи кладём тёмную борозду и цвет, в спрайт свечения — мягкий ореол
-function glowLines(x,gx,lines,col,rgb,w){x.lineCap=gx.lineCap='round';x.lineJoin=gx.lineJoin='round';
-  for(const l of lines){poly(x,l.pts);x.strokeStyle='rgba(10,2,0,0.75)';x.lineWidth=w*l.w*2.2;x.stroke();x.strokeStyle=col;x.lineWidth=w*l.w;x.stroke()}
-  if(!gx)return;
-  for(const[k,a]of[[6,0.07],[3.2,0.16],[1.4,0.55]])for(const l of lines){poly(gx,l.pts);gx.strokeStyle=`rgba(${rgb},${a})`;gx.lineWidth=w*l.w*k;gx.stroke()}
-  for(const l of lines){poly(gx,l.pts);gx.strokeStyle='rgba(255,250,230,0.7)';gx.lineWidth=w*l.w*0.45;gx.stroke()}}
-function glowDot(x,gx,px,py,r,core,rgb){x.fillStyle='rgba(0,0,0,0.5)';x.beginPath();x.arc(px,py,r*1.35,0,7);x.fill();x.fillStyle=core;x.beginPath();x.arc(px,py,r,0,7);x.fill();
-  if(gx){radial(gx,px,py,0,r*4,[[0,`rgba(${rgb},0.75)`],[0.3,`rgba(${rgb},0.25)`],[1,`rgba(${rgb},0)`]]);gx.fillStyle='rgba(255,255,240,0.9)';gx.beginPath();gx.arc(px,py,r*0.5,0,7);gx.fill()}}
-
-function buildSprite(S,si){
-  const rand=srand(1013+si*7919);const R=SR,eyes=eyePos(S,R);
-  const mk=()=>{const c=document.createElement('canvas');c.width=c.height=SS;const x=c.getContext('2d');x.translate(SCX,SCY);return[c,x]};
-  const[cnv,x]=mk();const[gcnv,gx0]=mk();const gx=S.glow?gx0:null;
-  const w=S.wide*R,path=headPath(S,R);
-  // уши
-  for(const sd of[-1,1]){const p=new Path2D();
-    if(S.ears==='round'){p.moveTo(sd*w*0.94,-R*0.32);p.bezierCurveTo(sd*w*1.32,-R*0.5,sd*w*1.36,R*0.16,sd*w*0.94,R*0.22)}
-    else{const L=S.earLen;p.moveTo(sd*w*0.96,-R*0.3);p.quadraticCurveTo(sd*w*(1.1+0.1*L),-R*(0.42+0.1*L),sd*w*(1.3+0.2*L),-R*(0.62+0.3*L));
-      p.quadraticCurveTo(sd*w*1.34,-R*0.12,sd*w*1.16,R*0.2);p.quadraticCurveTo(sd*w*1.06,R*0.36,sd*w*0.9,R*0.3)}
-    p.closePath();
-    const g=x.createLinearGradient(sd*w*0.9,0,sd*w*1.5,-R*0.6);g.addColorStop(0,S.dark);g.addColorStop(0.35,S.body);g.addColorStop(1,S.light);x.fillStyle=g;x.fill(p);
-    x.save();x.clip(p);const cx=sd*w*1.12,cy=-R*0.12;x.translate(cx,cy);x.scale(0.62,0.7);x.translate(-cx,-cy);
-    x.fillStyle=`rgba(${S.earIn},0.45)`;x.fill(p);x.fillStyle='rgba(0,0,0,0.25)';x.translate(sd*R*0.05,R*0.04);x.fill(p);x.restore();
-    if(gx&&S.deco==='magma'){gx.save();gx.clip(p);radial(gx,cx,cy,0,R*0.35,[[0,'rgba(255,90,40,0.25)'],[1,'rgba(255,90,40,0)']]);gx.restore()}
-    x.strokeStyle='rgba(0,0,0,0.6)';x.lineWidth=2;x.stroke(p)}
-  // кожа
-  x.save();x.clip(path);if(gx){gx.save();gx.clip(path)}
-  radial(x,-R*0.3,-R*0.6,R*0.05,R*1.6,[[0,S.light],[0.45,S.body],[1,S.dark]]);
-  for(let i=0;i<2600;i++){x.fillStyle=rand()<0.55?`rgba(0,0,0,${0.03+rand()*0.07})`:`rgba(255,255,255,${0.02+rand()*0.05})`;x.fillRect(-R*1.1+rand()*R*2.2,-R*1.3+rand()*R*2.5,0.8+rand()*1.6,0.8+rand()*1.6)}
-  // объём: виски, глазницы, скулы, щёки
-  for(const sd of[-1,1]){radial(x,sd*w*0.95,-R*0.3,0,R*0.55,[[0,'rgba(0,0,0,0.35)'],[1,'rgba(0,0,0,0)']]);
-    radial(x,sd*R*0.5,R*0.1,0,R*0.3,[[0,'rgba(255,255,255,0.14)'],[1,'rgba(255,255,255,0)']]);
-    radial(x,sd*R*0.55,R*0.48,0,R*0.32,[[0,'rgba(0,0,0,0.25)'],[1,'rgba(0,0,0,0)']])}
-  for(const[ex,ey,er]of eyes){radial(x,ex,ey+er*0.1,er*0.5,er*2.1,[[0,`rgba(0,0,0,${S.socket})`],[1,'rgba(0,0,0,0)']]);
-    radial(x,ex-er*0.1,ey-er*1.45,0,er*1.1,[[0,'rgba(255,255,255,0.16)'],[1,'rgba(255,255,255,0)']]);
-    x.strokeStyle='rgba(0,0,0,0.18)';x.lineWidth=er*0.25;x.lineCap='round';x.beginPath();x.ellipse(ex,ey+er*0.1,er*1.15,er*1.0,0,1.2*Math.PI,1.85*Math.PI);x.stroke()}
-  radial(x,0,R*0.68,0,R*0.3,[[0,'rgba(0,0,0,0.22)'],[1,'rgba(0,0,0,0)']]);
-  radial(x,0,R*0.86,0,R*0.2,[[0,'rgba(255,255,255,0.14)'],[1,'rgba(255,255,255,0)']]);
-  const bs=x.createLinearGradient(0,R*0.2,0,R*1.05);bs.addColorStop(0,'rgba(0,0,0,0)');bs.addColorStop(1,'rgba(0,0,0,0.5)');x.fillStyle=bs;x.fillRect(-R*1.2,R*0.2,R*2.4,R);
-  // узоры
-  const ln=(pts,lw,col)=>{poly(x,pts);x.strokeStyle=col;x.lineWidth=lw;x.stroke()};
-  x.lineCap='round';x.lineJoin='round';
-  if(S.deco==='circuit'){
-    for(let i=0;i<14;i++){const pts=[];let px=-R*0.9+rand()*R*1.8,py=-R*1.0+rand()*R*1.8;for(let k=0;k<6;k++){pts.push([px,py]);px+=(rand()-0.5)*R*0.18;py+=(rand()-0.3)*R*0.16}ln(pts,0.7,'rgba(170,110,60,0.3)')}
-    for(const[ex,ey,er]of eyes){x.fillStyle=S.paint;x.beginPath();x.ellipse(ex,ey+er*0.08,er*1.62,er*1.28,0,0,7);x.fill();
-      radial(x,ex,ey,er*0.7,er*1.6,[[0,'rgba(15,25,80,0.55)'],[1,'rgba(15,25,80,0)']]);
-      for(let k=0;k<4;k++){x.strokeStyle=`rgba(180,215,255,${0.12+rand()*0.12})`;x.lineWidth=1.2;x.beginPath();x.ellipse(ex,ey+er*0.08,er*(1.15+k*0.12),er*(0.9+k*0.1),0,3.6,5.9);x.stroke()}}
-    const np=new Path2D();np.moveTo(-R*0.06,-R*0.06);np.lineTo(R*0.06,-R*0.06);np.lineTo(R*0.1,R*0.17);np.quadraticCurveTo(0,R*0.21,-R*0.1,R*0.17);np.closePath();
-    x.fillStyle=S.paint;x.fill(np);x.save();x.clip(np);for(let yy=R*0.06;yy<R*0.2;yy+=R*0.028){ln([[-R*0.12,yy],[R*0.12,yy]],1.2,'rgba(20,40,110,0.4)')}x.restore();
-    for(const sd of[-1,1]){const pts=[[0,-R*0.3],[0,-R*0.42],[sd*R*0.42,-R*0.6],[sd*R*0.56,-R*0.6],[sd*R*0.56,-R*0.92],[sd*R*0.36,-R*0.92],[sd*R*0.36,-R*1.04]];
-      x.lineJoin='miter';ln(pts,R*0.075,S.paint);ln([[sd*R*0.56,-R*0.76],[sd*R*0.82,-R*0.76],[sd*R*0.82,-R*0.52]],R*0.065,S.paint);
-      ln(pts.map(([a,b])=>[a-1.5,b-1.5]),R*0.022,'rgba(200,225,255,0.35)');x.lineJoin='round'}
-    ln([[0,R*0.72],[0,R*0.98]],R*0.05,S.paint);
-    glowDot(x,gx,0,-R*0.35,R*0.04,'#f0e070','255,230,120');
-    for(const sd of[-1,1])glowDot(x,gx,sd*R*0.3,R*0.33,R*0.032,'#a0f0ff',S.glow);
-  }
-  if(S.deco==='magma'||S.deco==='kintsugi'){const L=[];
-    if(S.deco==='magma'){for(const[a,b,ang,len]of[[-0.1,-1.18,1.75,0.75],[0.25,-1.12,1.5,0.6],[-0.5,-0.95,1.9,0.55],[0.55,-0.9,1.3,0.5],[-0.62,-0.2,2.0,0.5],[0.62,-0.2,1.1,0.5],[-0.36,0.12,1.95,0.5],[0.36,0.12,1.2,0.5],[-0.15,-0.36,-2.6,0.3],[0.15,-0.36,-0.5,0.3],[0.1,0.72,1.6,0.3]])crack(rand,L,a*R,b*R,ang,len*R,6,0);
-      for(let i=0;i<8;i++){const pts=[];let px=-R*0.8+rand()*R*1.6,py=-R*0.9+rand()*R*1.7;for(let k=0;k<4;k++){pts.push([px,py]);px+=(rand()-0.5)*R*0.2;py+=(rand()-0.5)*R*0.2}ln(pts,1,'rgba(0,0,30,0.35)')}
-      glowLines(x,gx,L,'#ff8a2a',S.glow,R*0.026)}
-    else{for(let i=0;i<9;i++){const a=i/9*6.283+rand()*0.4,rr=R*0.95;crack(rand,L,Math.cos(a)*rr,Math.sin(a)*rr*1.1,a+Math.PI+(rand()-0.5)*0.8,R*(0.35+rand()*0.25),5,0)}
-      for(let i=0;i<10;i++)radial(x,-R+rand()*R*2,-R+rand()*R*2,0,R*(0.1+rand()*0.2),[[0,'rgba(0,30,15,0.25)'],[1,'rgba(0,30,15,0)']]);
-      glowLines(x,gx,L,'#ffd060',S.glow,R*0.02)}
-  }
-  if(S.deco==='wrinkles'){const wr=(pts,lw)=>{ln(pts,lw,'rgba(60,30,30,0.45)');ln(pts.map(([a,b])=>[a,b+lw*0.9]),lw*0.8,'rgba(255,240,230,0.28)')};
-    for(let i=0;i<6;i++){const y=-R*0.4-i*R*0.085,hw=R*(0.62-i*0.03);for(const sd of[-1,1]){const pts=[];for(let k=0;k<=6;k++){const t=k/6;pts.push([sd*t*hw,y+R*0.035*(1-t)-R*0.05*Math.sin(t*Math.PI)+(rand()-0.5)*R*0.02])}wr(pts,R*0.018)}}
-    for(const sd of[-1,1])wr([[sd*R*0.05,-R*0.32],[sd*R*0.06,-R*0.22],[sd*R*0.08,-R*0.12]],R*0.02);
-    for(const[ex,ey,er]of eyes){const sd=Math.sign(ex);
-      for(let k=0;k<3;k++){x.strokeStyle='rgba(60,30,30,0.45)';x.lineWidth=R*0.016;x.beginPath();x.ellipse(ex,ey+er*0.15,er*(1.15+k*0.22),er*(0.75+k*0.3),0,0.15*Math.PI,0.85*Math.PI);x.stroke();
-        x.strokeStyle='rgba(255,240,230,0.22)';x.beginPath();x.ellipse(ex,ey+er*0.15+R*0.015,er*(1.15+k*0.22),er*(0.75+k*0.3),0,0.2*Math.PI,0.8*Math.PI);x.stroke()}
-      for(let k=0;k<2;k++){x.strokeStyle='rgba(60,30,30,0.4)';x.lineWidth=R*0.018;x.beginPath();x.ellipse(ex,ey,er*(1.25+k*0.2),er*(1.1+k*0.25),0,1.15*Math.PI,1.85*Math.PI);x.stroke()}
-      for(let k=-1;k<=1;k++)wr([[ex+sd*er*1.3,ey+k*er*0.25],[ex+sd*er*1.75,ey+k*er*0.45]],R*0.013)}
-    for(const sd of[-1,1]){wr([[sd*R*0.15,R*0.24],[sd*R*0.33,R*0.38],[sd*R*0.36,R*0.58],[sd*R*0.32,R*0.78]],R*0.024);
-      radial(x,sd*R*0.4,R*0.5,0,R*0.2,[[0,'rgba(0,0,0,0.2)'],[1,'rgba(0,0,0,0)']]);wr([[sd*R*0.2,R*0.8],[sd*R*0.1,R*0.86],[0,R*0.87]],R*0.016)}
-    for(const[a,b,r,c]of[[-0.3,-0.9,0.3,'120,190,230,0.32'],[0.4,-0.8,0.22,'120,190,230,0.25'],[0.1,-1.0,0.12,'210,170,90,0.4'],[-0.6,-0.6,0.07,'210,170,90,0.45'],[0.55,-0.55,0.06,'210,170,90,0.4']])radial(x,a*R,b*R,0,r*R,[[0,`rgba(${c})`],[1,'rgba(0,0,0,0)']]);
-  }
-  if(S.deco==='runes'){const L=[];
-    for(const[ex,ey,er]of eyes){L.push({pts:[[ex,-R*0.62],[ex,ey-er*1.3]],w:1});L.push({pts:[[ex,ey+er*1.0],[ex,R*0.2],[ex-Math.sign(ex)*R*0.05,R*0.32]],w:1})}
-    const ring=[];for(let k=0;k<=24;k++){const a=k/24*6.283;ring.push([Math.cos(a)*R*0.14,-R*0.78+Math.sin(a)*R*0.14])}L.push({pts:ring,w:0.8});
-    for(const a of[-1.57,0.52,2.62])L.push({pts:[[Math.cos(a)*R*0.2,-R*0.78+Math.sin(a)*R*0.2],[Math.cos(a)*R*0.3,-R*0.78+Math.sin(a)*R*0.3]],w:0.8});
-    L.push({pts:[[-R*0.12,R*0.78],[0,R*0.88],[R*0.12,R*0.78]],w:0.8});
-    for(let i=0;i<300;i++){x.fillStyle=`rgba(20,15,30,${0.1+rand()*0.2})`;x.fillRect(-R+rand()*R*2,-R*1.2+rand()*R*2.2,1.5,1.5)}
-    glowLines(x,gx,L,'#d0b0ff',S.glow,R*0.024);glowDot(x,gx,0,-R*0.78,R*0.04,'#f4eaff',S.glow);
-  }
-  if(S.deco==='warpaint'){const pc=rgbA(S.paint,0.92);
-    ln([[0,-R*1.05],[0,-R*0.38]],R*0.08,pc);for(const sd of[-1,1]){ln([[sd*R*0.22,-R*0.98],[sd*R*0.15,-R*0.45]],R*0.05,pc);ln([[sd*R*0.45,-R*0.85],[sd*R*0.3,-R*0.42]],R*0.04,pc)}
-    for(const[ex,ey,er]of eyes)for(const o of[-0.35,0.35]){const x0=ex+o*er;const pts=[[x0,ey+er*0.9],[x0+o*R*0.02,ey+er*2.2],[x0,R*0.42]];poly(x,pts);x.strokeStyle=pc;x.lineWidth=R*0.04;x.stroke()}
-    ln([[-R*0.32,R*0.84],[R*0.32,R*0.84]],R*0.05,pc);
-    for(let i=0;i<220;i++){x.fillStyle=`rgba(${hexRgb(S.body)},0.7)`;x.fillRect(-R+rand()*R*2,-R*1.1+rand()*R*2.1,1+rand()*2,1+rand()*2)}
-    for(let i=0;i<3;i++){const y=-R*(0.55+i*0.15);radial(x,0,y,0,R*0.35,[[0,'rgba(255,200,180,0.08)'],[1,'rgba(0,0,0,0)']])}
-  }
-  // нос
-  {x.lineCap='round';
-    x.save();x.globalAlpha=0.55;const ns=x.createLinearGradient(R*0.02,0,R*0.16,0);ns.addColorStop(0,'rgba(0,0,0,0)');ns.addColorStop(0.4,'rgba(0,0,0,0.45)');ns.addColorStop(1,'rgba(0,0,0,0)');
-    x.fillStyle=ns;x.beginPath();x.moveTo(R*0.03,-R*0.08);x.lineTo(R*0.07,-R*0.08);x.lineTo(R*0.17,R*0.26);x.lineTo(R*0.05,R*0.3);x.closePath();x.fill();x.restore();
-    radial(x,0,R*0.24,R*0.08,R*0.2,[[0,'rgba(0,0,0,0.18)'],[1,'rgba(0,0,0,0)']]);
-    ln([[-R*0.03,-R*0.08],[-R*0.025,R*0.18]],R*0.05,'rgba(255,255,255,0.16)');
-    radial(x,-R*0.02,R*0.21,0,R*0.09,[[0,'rgba(255,255,255,0.38)'],[1,'rgba(255,255,255,0)']]);
-    for(const sd of[-1,1]){x.strokeStyle='rgba(0,0,0,0.35)';x.lineWidth=R*0.022;x.beginPath();x.arc(sd*R*0.09,R*0.27,R*0.06,sd>0?-1.2:Math.PI-0.4,sd>0?0.4:Math.PI+1.2);x.stroke();
-      x.fillStyle='rgba(20,5,5,0.8)';x.beginPath();x.ellipse(sd*R*0.052,R*0.315,R*0.034,R*0.02,sd*0.35,0,7);x.fill()}
-    x.fillStyle='rgba(0,0,0,0.22)';x.beginPath();x.ellipse(0,R*0.37,R*0.13,R*0.035,0,0,7);x.fill();
-    for(const sd of[-1,1])ln([[sd*R*0.03,R*0.38],[sd*R*0.04,R*0.47]],R*0.015,'rgba(0,0,0,0.15)')}
-  // блик на макушке и контровой свет
-  x.globalCompositeOperation='lighter';
-  radial(x,-R*0.18,-R*0.82,0,R*0.42,[[0,'rgba(255,255,255,0.32)'],[0.5,'rgba(255,255,255,0.08)'],[1,'rgba(255,255,255,0)']]);
-  radial(x,-R*0.22,-R*0.9,0,R*0.1,[[0,'rgba(255,255,255,0.45)'],[1,'rgba(255,255,255,0)']]);
-  x.strokeStyle=`rgba(${S.rim},0.32)`;x.lineWidth=R*0.08;x.save();x.translate(-R*0.04,-R*0.02);x.stroke(path);x.restore();
-  x.globalCompositeOperation='source-over';x.restore();if(gx)gx.restore();
-  x.strokeStyle='rgba(0,0,0,0.75)';x.lineWidth=2.5;x.stroke(path);
-  return[cnv,gx?gcnv:null];
-}
-const SPR=[],GLOW=[];SKINS.forEach((S,i)=>{const[a,b]=buildSprite(S,i);SPR.push(a);GLOW.push(b)});
+function loadImg(src){return new Promise(res=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src})}
+const facesReady=Promise.all(SKINS.map(async S=>{
+  S.img=await loadImg('assets/'+S.file+'.webp');S.gimg=S.glow?await loadImg('assets/'+S.file+'_glow.webp'):null;
+  if(S.img){const c=document.createElement('canvas');c.width=S.img.width;c.height=S.img.height;const x=c.getContext('2d');
+    x.drawImage(S.img,0,0);x.globalCompositeOperation='source-in';x.fillStyle='#ff2a1a';x.fillRect(0,0,c.width,c.height);S.hurtImg=c}}));
 const shadowSpr=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');const g=x.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'rgba(0,0,0,0.7)');g.addColorStop(0.5,'rgba(0,0,0,0.35)');g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(0,0,64,64);return c})();
-
-function eyeOutline(c,S,ex,ey,er,t,b){const sd=Math.sign(ex),ix=ex-sd*er,ox=ex+sd*er,tl=er*S.eyeTilt;
-  c.beginPath();c.moveTo(ix,ey+er*0.05);c.bezierCurveTo(ix+sd*er*0.35,ey-t,ox-sd*er*0.45,ey-t-tl,ox,ey-tl);c.bezierCurveTo(ox-sd*er*0.4,ey+b,ix+sd*er*0.4,ey+b,ix,ey+er*0.05)}
-function drawEyes(c,S,r,lx,ly,hurt){
-  for(const[ex,ey,er]of eyePos(S,r)){const sd=Math.sign(ex),t=er*S.lidT,b=er*S.lidB;
-    // складка века
-    c.strokeStyle='rgba(0,0,0,0.3)';c.lineWidth=er*0.1;c.lineCap='round';c.beginPath();c.moveTo(ex-sd*er*0.85,ey-er*0.3);c.quadraticCurveTo(ex,ey-t*1.35,ex+sd*er*1.05,ey-er*0.25-er*S.eyeTilt);c.stroke();
-    if(hurt>0.12){eyeOutline(c,S,ex,ey,er,t*0.25,b*0.25);c.fillStyle='rgba(0,0,0,0.35)';c.fill();c.strokeStyle='#120606';c.lineWidth=er*0.16;c.stroke();continue}
-    eyeOutline(c,S,ex,ey,er,t,b);
-    c.save();c.clip();
-    const sg=c.createRadialGradient(ex,ey,er*0.2,ex,ey,er*1.1);
-    if(S.glowEyes){sg.addColorStop(0,S.iris2);sg.addColorStop(0.5,S.sclera);sg.addColorStop(1,S.irisDark)}else{sg.addColorStop(0,S.sclera);sg.addColorStop(0.75,S.sclera);sg.addColorStop(1,'#8a7a70')}
-    c.fillStyle=sg;c.fillRect(ex-er*1.2,ey-er*1.2,er*2.4,er*2.4);
-    const ir=er*S.irisR,px=ex+lx*er*0.35,py=ey+ly*er*0.18;
-    const ig=c.createRadialGradient(px,py,0,px,py,ir);ig.addColorStop(0,S.iris2);ig.addColorStop(0.45,S.iris);ig.addColorStop(0.9,S.irisDark);ig.addColorStop(1,'#050308');
-    c.fillStyle=ig;c.beginPath();c.arc(px,py,ir,0,7);c.fill();
-    if(S.pupil){c.fillStyle='#050203';c.beginPath();if(S.slit)c.ellipse(px,py,ir*0.18,ir*0.8,0,0,7);else c.arc(px,py,ir*(S.glowEyes?0.3:0.42),0,7);c.fill()}
-    const lg=c.createLinearGradient(0,ey-t,0,ey+er*0.1);lg.addColorStop(0,'rgba(0,0,0,0.6)');lg.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=lg;c.fillRect(ex-er*1.2,ey-t,er*2.4,t+er*0.1);
-    c.restore();
-    c.fillStyle='rgba(255,255,255,0.9)';c.beginPath();c.arc(px-ir*0.35,py-ir*0.4,ir*0.2,0,7);c.fill();
-    eyeOutline(c,S,ex,ey,er,t,b);c.strokeStyle='rgba(20,8,6,0.55)';c.lineWidth=er*0.07;c.stroke();
-    c.beginPath();c.moveTo(ex-sd*er,ey+er*0.05);c.bezierCurveTo(ex-sd*er*0.65,ey-t,ex+sd*er*0.55,ey-t-er*S.eyeTilt,ex+sd*er,ey-er*S.eyeTilt);c.strokeStyle='#160806';c.lineWidth=er*0.15;c.stroke();
-  }
-}
-function drawMouth(c,S,r,open){
-  const my=S.mouthY*r,mw=S.mouthW*r,cv=S.frown*r,uh=S.lipU*r,lh=S.lipL*r,op=open*r*0.8;
-  const L=S.lip;
-  // верхняя губа
-  const up=new Path2D();up.moveTo(-mw,my+cv);up.quadraticCurveTo(-mw*0.6,my-uh*0.9,-mw*0.3,my-uh);up.quadraticCurveTo(-mw*0.1,my-uh,0,my-uh*0.6);up.quadraticCurveTo(mw*0.1,my-uh,mw*0.3,my-uh);up.quadraticCurveTo(mw*0.6,my-uh*0.9,mw,my+cv);up.quadraticCurveTo(0,my-cv,-mw,my+cv);up.closePath();
-  const lo=new Path2D();lo.moveTo(-mw,my+cv);lo.quadraticCurveTo(0,my-cv+2*op,mw,my+cv);lo.quadraticCurveTo(0,my-cv+2*op+2*lh,-mw,my+cv);lo.closePath();
-  if(op>0.3){const inn=new Path2D();inn.moveTo(-mw*0.92,my+cv);inn.quadraticCurveTo(0,my-cv-uh*0.2,mw*0.92,my+cv);inn.quadraticCurveTo(0,my-cv+2*op,-mw*0.92,my+cv);inn.closePath();
-    c.fillStyle='#150405';c.fill(inn);c.save();c.clip(inn);c.fillStyle='#e8dcc8';c.fillRect(-mw,my-uh,mw*2,uh+op*0.35);c.strokeStyle='rgba(0,0,0,0.3)';c.lineWidth=0.6;c.beginPath();for(let i=-3;i<=3;i++){c.moveTo(i*mw*0.18,my-uh);c.lineTo(i*mw*0.18,my+op*0.3)}c.stroke();c.restore()}
-  const ug=c.createLinearGradient(0,my-uh,0,my);ug.addColorStop(0,L);ug.addColorStop(1,'rgba(0,0,0,0.55)');c.fillStyle=L;c.fill(up);c.fillStyle=ug;c.fill(up);
-  const lg=c.createLinearGradient(0,my,0,my+op+lh*1.2);lg.addColorStop(0,'rgba(0,0,0,0.3)');lg.addColorStop(0.45,'rgba(255,255,255,0.18)');lg.addColorStop(1,'rgba(0,0,0,0.25)');c.fillStyle=L;c.fill(lo);c.fillStyle=lg;c.fill(lo);
-  c.strokeStyle='rgba(15,3,3,0.75)';c.lineWidth=Math.max(0.8,r*0.022);c.beginPath();c.moveTo(-mw,my+cv);c.quadraticCurveTo(0,my-cv,mw,my+cv);c.stroke();
-  if(op>0.3){c.beginPath();c.moveTo(-mw,my+cv);c.quadraticCurveTo(0,my-cv+2*op,mw,my+cv);c.stroke()}
-  for(const sd of[-1,1]){const g=c.createRadialGradient(sd*mw,my+cv,0,sd*mw,my+cv,r*0.07);g.addColorStop(0,'rgba(0,0,0,0.4)');g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(sd*mw-r*0.07,my+cv-r*0.07,r*0.14,r*0.14)}
-}
-function drawMorda(c,x,y,r,si,lx,ly,hurt,tilt,squash,alpha,open){
-  const S=SKINS[si],k=r/SR;
-  c.save();c.translate(x,y);c.rotate(tilt);c.scale(1+squash,1-squash);c.globalAlpha=alpha;
-  c.drawImage(SPR[si],-SCX*k,-SCY*k,SS*k,SS*k);
-  drawEyes(c,S,r,lx,ly,hurt);drawMouth(c,S,r,open);
+function faceTf(c,S,x,y,r,tilt,squash){c.translate(x,y);c.rotate(tilt);c.scale(1+squash,1-squash);const k=r*FACE/S.fw;c.scale(k,k);c.translate(-S.cx,-S.cy)}
+function drawMorda(c,x,y,r,si,lx,ly,hurt,tilt,squash,alpha){
+  const S=SKINS[si];c.save();
+  if(!S.img){c.globalAlpha=alpha;c.fillStyle=S.dark;c.beginPath();c.arc(x,y,r,0,7);c.fill();c.restore();return}
+  faceTf(c,S,x,y,r,tilt,squash);c.globalAlpha=alpha;c.drawImage(S.img,0,0);
+  if(hurt>0){c.globalAlpha=alpha*clamp(hurt*1.6,0,0.5);c.drawImage(S.hurtImg,0,0)}
   c.restore();
 }
 // свечение морды (рисовать с globalCompositeOperation='lighter')
 function drawMordaGlow(c,x,y,r,si,lx,ly,hurt,tilt,squash,alpha){
-  const S=SKINS[si],k=r/SR;
-  c.save();c.translate(x,y);c.rotate(tilt);c.scale(1+squash,1-squash);
-  if(GLOW[si]){c.globalAlpha=alpha*(0.8+0.2*Math.sin(rt*3+si));c.drawImage(GLOW[si],-SCX*k,-SCY*k,SS*k,SS*k)}
-  c.globalAlpha=alpha;
-  if(S.glowEyes&&hurt<=0.12)for(const[ex,ey,er]of eyePos(S,r)){const px=ex+lx*er*0.35,py=ey+ly*er*0.18;
-    const g=c.createRadialGradient(px,py,0,px,py,er*2.6);g.addColorStop(0,`rgba(${hexRgb(S.eye)},0.6)`);g.addColorStop(0.35,`rgba(${hexRgb(S.eye)},0.2)`);g.addColorStop(1,`rgba(${hexRgb(S.eye)},0)`);c.fillStyle=g;c.fillRect(px-er*2.6,py-er*2.6,er*5.2,er*5.2)}
+  const S=SKINS[si];if(!S.gimg)return;c.save();faceTf(c,S,x,y,r,tilt,squash);
+  c.globalAlpha=alpha*(0.75+0.25*Math.sin(rt*3+si));c.drawImage(S.gimg,0,0);
+  if(hurt<=0.12)for(const[ex,ey]of S.eyes){const g=c.createRadialGradient(ex,ey,0,ex,ey,34);g.addColorStop(0,`rgba(${hexRgb(S.eye)},0.55)`);g.addColorStop(0.35,`rgba(${hexRgb(S.eye)},0.18)`);g.addColorStop(1,`rgba(${hexRgb(S.eye)},0)`);c.fillStyle=g;c.fillRect(ex-34,ey-34,68,68)}
   c.restore();
 }
+
 
 // ---------- Рисование мира ----------
 function drawChain(f){
@@ -717,8 +556,7 @@ function render(dt){
   for(const f of order){
     const b=f.body,w=f.W;
     if(w){ctx.save();drawChain(f);ctx.restore();world()}
-    const[hvx,hvy]=f.head?vel(f.head):[0,0];const open=clamp(f.hurt*1.2,0,0.3)+(f.head?clamp((Math.hypot(hvx,hvy)-900)/3000,0,0.12):0);
-    drawMorda(ctx,b.x,b.y,b.r,f.skin,f.look[0],f.look[1],f.hurt,f.tilt,f.squash,(f.inv>0&&((time*10|0)%2===0))?0.45:1,open);
+    drawMorda(ctx,b.x,b.y,b.r,f.skin,0,0,f.hurt,f.tilt,f.squash,(f.inv>0&&((time*10|0)%2===0))?0.45:1);
     if(f.head)drawHeadBase(f);
   }
   for(const p of projs){const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);g.addColorStop(0,'#3a1a0a');g.addColorStop(1,'#120604');ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,p.r*0.8,0,7);ctx.fill()}
@@ -731,7 +569,7 @@ function render(dt){
   for(const t of TORCHES){const fl=0.85+0.1*Math.sin(rt*13+t.x)+0.07*Math.sin(rt*29+t.y);addLight(t.x,t.y-20,520*fl,'255,150,70',0.75*fl)}
   for(const p of PILLARS)addLight(p.x,p.y,260,'150,90,255',0.35+0.1*Math.sin(rt*2+p.x));
   addLight(AW/2,AH/2,700,'120,90,200',0.25);
-  for(const f of alive){const S=SKINS[f.skin];addLight(f.body.x,f.body.y,170,hexRgb(S.eye),0.3);addLight(f.body.x,f.body.y+30,110,hexRgb(TEAMC[f.team]),0.25);
+  for(const f of alive){const S=SKINS[f.skin];addLight(f.body.x,f.body.y,170,hexRgb(S.eye),0.3);addLight(f.body.x,f.body.y-6,90,'255,236,214',0.55);addLight(f.body.x,f.body.y+30,110,hexRgb(TEAMC[f.team]),0.25);
     if(f.head){const dg=headDanger(f);const base=f.weaponId==='gira'?0.15:0.45;addLight(f.head.x,f.head.y,160+dg*200,f.W.rgb,base+dg*0.6)}}
   for(const p of projs)addLight(p.x,p.y,240,'255,140,50',0.9);
   for(const p of parts)if(p.type==='flash')addLight(p.x,p.y,p.size*4,p.rgb,clamp(p.life/p.max,0,1));
@@ -745,7 +583,7 @@ function render(dt){
   for(const f of alive){
     if(f.head){drawTrail(f);drawHeadGlow(f)}
     drawMordaGlow(ctx,f.body.x,f.body.y,f.body.r,f.skin,f.look[0],f.look[1],f.hurt,f.tilt,f.squash,(f.inv>0&&((time*10|0)%2===0))?0.45:1);
-    const b=f.body;ctx.strokeStyle=`rgba(${hexRgb(TEAMC[f.team])},0.75)`;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(b.x,b.y,b.r+6,Math.PI*0.2,Math.PI*0.8);ctx.stroke();
+    const b=f.body;ctx.strokeStyle=`rgba(${hexRgb(TEAMC[f.team])},0.75)`;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(b.x,b.y,b.r*1.62,Math.PI*0.25,Math.PI*0.75);ctx.stroke();
   }
   for(const p of projs){const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*2.6);g.addColorStop(0,'rgba(255,250,220,1)');g.addColorStop(0.25,'rgba(255,190,80,0.9)');g.addColorStop(0.6,'rgba(255,90,20,0.35)');g.addColorStop(1,'rgba(255,40,0,0)');ctx.fillStyle=g;ctx.fillRect(p.x-p.r*2.6,p.y-p.r*2.6,p.r*5.2,p.r*5.2);
     ctx.strokeStyle=`rgba(${hexRgb(TEAMC[p.team])},0.6)`;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(p.x,p.y,p.r*1.3,0,7);ctx.stroke()}
@@ -833,12 +671,13 @@ function makeChoices(id,items,key){
   items.forEach(it=>{const d=document.createElement('div');d.className='choice'+(sel[key]===it.value?' sel':'');
     if(it.skin!==undefined){const c=document.createElement('canvas');c.width=96;c.height=96;const cc=c.getContext('2d');
       const bg=cc.createRadialGradient(48,50,5,48,50,48);bg.addColorStop(0,'#2a2234');bg.addColorStop(1,'#0c0a10');cc.fillStyle=bg;cc.fillRect(0,0,96,96);
-      drawMorda(cc,48,56,27,it.skin,0,0.2,0,0,0,1,0);cc.globalCompositeOperation='lighter';drawMordaGlow(cc,48,56,27,it.skin,0,0.2,0,0,0,1);cc.globalCompositeOperation='source-over';
+      const cy=8+SKINS[it.skin].crown*22;drawMorda(cc,48,cy,22,it.skin,0,0,0,0,0,1);cc.globalCompositeOperation='lighter';drawMordaGlow(cc,48,cy,22,it.skin,0,0,0,0,0,1);cc.globalCompositeOperation='source-over';
       d.appendChild(c)}
     d.appendChild(document.createTextNode(it.label));if(it.desc){const s=document.createElement('small');s.textContent=it.desc;d.appendChild(s)}
     d.onclick=()=>{sel[key]=it.value;makeChoices(id,items,key)};box.appendChild(d)});
 }
 makeChoices('skins',SKINS.map((s,i)=>({label:s.name,value:i,skin:i})),'skin');
+facesReady.then(()=>makeChoices('skins',SKINS.map((s,i)=>({label:s.name,value:i,skin:i})),'skin'));
 makeChoices('weapons',Object.entries(WEAPONS).map(([k,w])=>({label:w.name,value:k,desc:w.desc})),'weapon');
 makeChoices('modes',[{label:'Тренировка',value:'train',desc:'манекены, просто полетать'},{label:'Дуэль 1 × 1',value:'duel',desc:'против бота, до 5'},{label:'Команды 4 × 4',value:'team',desc:'с ботами, до 15'}],'mode');
 makeChoices('diffs',DIFFS.map((d,i)=>({label:d.name,value:i})),'diff');
