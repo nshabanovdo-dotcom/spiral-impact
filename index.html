@@ -55,7 +55,7 @@ b{color:#e9d8ae;font-weight:600}
 <script>
 'use strict';
 // Версию повышать при каждом изменении игры и записывать в CHANGELOG.md
-const VERSION='1.4';
+const VERSION='1.5';
 // Набор оружия на клавишах 1/2/3 — его задаёт склад оружия (armory.js)
 function LOADOUT(){return window.getLoadout?window.getLoadout():['gira','shar','posoh']}
 document.title='Spiral Impact v'+VERSION;document.getElementById('ver').textContent='v'+VERSION;
@@ -813,9 +813,16 @@ function render(dt){
     if(L>6){ctx.strokeStyle='rgba(240,225,195,0.55)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(ax,ay,5,0,7);ctx.stroke()}}
   // имена и здоровье
   ctx.textAlign='center';ctx.textBaseline='bottom';ctx.font='600 12px Segoe UI, Arial';
-  for(const f of alive){const b=f.body,bw=50,bx=b.x-bw/2,by=b.y-b.r*(SKINS[f.skin].crown||1.3)-12;
-    ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(bx-1,by-1,bw+2,6);ctx.fillStyle=f.hp/f.maxHp>0.35?'#7ccf6a':'#e0503e';ctx.fillRect(bx,by,bw*clamp(f.hp/f.maxHp,0,1),4);
-    ctx.fillStyle='rgba(0,0,0,0.8)';ctx.fillText(f.name,b.x+1,by-3+1);ctx.fillStyle=f===player?'#f2ead6':TEAMC[f.team];ctx.fillText(f.name,b.x,by-3)}
+  // компактно и только нужное: свой боец, раненые, недавно задетые и ближайшие; имена не налезают друг на друга
+  ctx.font='600 10.5px Segoe UI, Arial';const taken=[];
+  const lbl=alive.filter(f=>f.kind!=='bag').map(f=>{const d=player?Math.hypot(f.body.x-player.body.x,f.body.y-player.body.y):0;
+    const show=f===player||f.hp<f.maxHp-0.5||time-f.lastHitT<2.5||d<450;return{f,d,show}}).filter(o=>o.show).sort((a,b)=>a.d-b.d);
+  for(const{f,d}of lbl){const b=f.body,bw=34,bx=b.x-bw/2,by=b.y-b.r*(SKINS[f.skin].crown||1.3)-8,al=f===player?1:clamp(1.3-d/900,0.45,1);ctx.globalAlpha=al;
+    ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(bx-1,by-1,bw+2,5);ctx.fillStyle=f.team===(player?player.team:'blue')?'#7ccf6a':'#e0503e';ctx.fillRect(bx,by,bw*clamp(f.hp/f.maxHp,0,1),3);
+    const tw=ctx.measureText(f.name).width,box=[b.x-tw/2,by-15,tw,12];
+    if(!taken.some(t=>box[0]<t[0]+t[2]&&t[0]<box[0]+box[2]&&box[1]<t[1]+t[3]&&t[1]<box[1]+box[3])){taken.push(box);
+      ctx.fillStyle='rgba(0,0,0,0.8)';ctx.fillText(f.name,b.x+1,by-2+1);ctx.fillStyle=f===player?'#f2ead6':TEAMC[f.team];ctx.fillText(f.name,b.x,by-2)}}
+  ctx.globalAlpha=1;
   ctx.textBaseline='middle';
   for(const n of nums){ctx.globalAlpha=clamp(n.life,0,1);ctx.font=`700 ${n.size|0}px Segoe UI, Arial`;ctx.lineWidth=4;ctx.strokeStyle='rgba(0,0,0,0.85)';ctx.strokeText(n.text,n.x,n.y);ctx.fillStyle=n.color;ctx.fillText(n.text,n.x,n.y)}
   ctx.globalAlpha=1;

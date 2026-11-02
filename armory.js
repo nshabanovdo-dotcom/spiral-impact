@@ -78,9 +78,12 @@ function checkAch(){
 // ---------- Крупные цифры урона ----------
 const bigNums=[];let redFlash=0;
 const WORDS60=['Разгром!','Казнь!','Уничтожение!','Сокрушение!'];
-function pushNum(x,y,dmg,kind){
+function pushNum(x,y,dmg,kind,vic){
+  // близкие удары по одной цели складываются в одну цифру
+  if(vic&&!kind){for(const n of bigNums)if(n.vic===vic&&typeof n.tier==='number'&&n.age<0.4){n.dmg+=dmg;n.tier=n.dmg>=60?4:n.dmg>=40?3:n.dmg>=20?2:1;n.age=0.05;n.x=x;n.y=y;
+    n.life=n.tier===4?1.8:n.tier===3?1.5:n.tier===2?1.2:1;if(n.tier===4&&!n.word)n.word=pick(WORDS60);else if(n.tier===3&&!n.word)n.word='Сокрушительно!';return}}
   const tier=kind||(dmg>=60?4:dmg>=40?3:dmg>=20?2:1);
-  bigNums.push({x,y,vy:tier==='burn'||tier==='coin'?-40:-55,age:0,life:tier===4?1.8:tier===3?1.5:tier===2?1.2:1,dmg,tier,rot:typeof tier==='number'&&tier>=2?rnd(-0.12,0.12):0,word:tier===4?pick(WORDS60):tier===3?'Сокрушительно!':''});
+  bigNums.push({x,y,vy:tier==='burn'||tier==='coin'?-40:-55,age:0,life:tier===4?1.8:tier===3?1.5:tier===2?1.2:1,dmg,tier,rot:typeof tier==='number'&&tier>=2?rnd(-0.12,0.12):0,word:tier===4?pick(WORDS60):tier===3?'Сокрушительно!':'',vic});
 }
 function drawNums(dt){
   for(const n of bigNums){n.age+=dt;n.y+=n.vy*dt;n.vy*=Math.pow(0.2,dt)}
@@ -275,7 +278,7 @@ damage=function(vic,dmg,att,x,y){
   nums.length=n0;
   if(keep){hitStop=keep[0];shake=keep[1];zoomPunch=keep[2]}
   if(isBag){vic.hp=vic.maxHp;bagHit(dmg)}
-  pushNum(x,y-24,dmg,dot?'burn':0);
+  pushNum(x,y-24,dmg,dot?'burn':0,dot?null:vic);
   if(!dot&&dmg>=40){sparks(x,y,20,900);addP({type:'ring',x,y,life:0.4,max:0.4,size:20,grow:700,rgb:'255,200,120'})}
   if(!dot&&dmg>=60&&(att===player||vic===player)){redFlash=0.4;hitStop=Math.max(hitStop,0.12);slowT=Math.max(slowT,0.25);shake=Math.min(30,shake+10);zoomPunch=Math.min(0.1,zoomPunch+0.04)}
   if(!dot&&att&&att!==vic&&att.W&&att.W.fx)weaponFx(att,vic,dmg,x,y);
@@ -356,10 +359,11 @@ render=function(dt){
     ctx.font='13px Segoe UI, Arial';ctx.fillStyle='#cfc6b6';ctx.fillText('Урон за 10 с: '+Math.round(s)+'   ·   рекорд: '+Math.round(prof.bag10)+'   ·   лучший удар: '+Math.round(bagBest),VW/2,48)}
   // сообщения о наградах
   if(toasts.length){const t=toasts[0];t.t+=dt;const al=clamp(Math.min(t.t*4,(3.2-t.t)*2),0,1);
-    ctx.globalAlpha=al;const w=440,x=VW/2-w/2,y=VH*0.15;panel(x,y,w,78);ctx.strokeStyle='#d4b26a';ctx.lineWidth=1.5;rr(x,y,w,78,4);ctx.stroke();
-    ctx.textAlign='center';ctx.font='11px Segoe UI, Arial';ctx.fillStyle='#a8946a';ctx.fillText(t.title.toUpperCase(),VW/2,y+9);
-    ctx.font=`26px ${SLAV}`;ctx.fillStyle='#ffd36a';ctx.fillText(t.name,VW/2,y+24);
-    ctx.font='13px Segoe UI, Arial';ctx.fillStyle='#e9d8ae';ctx.fillText(t.sub,VW/2,y+56);ctx.globalAlpha=1;
+    // справа под лентой убийств — не закрывает центр экрана
+    ctx.globalAlpha=al;const w=290,x=VW-w-16,y=138,cx=x+w/2;panel(x,y,w,62);ctx.strokeStyle='#d4b26a';ctx.lineWidth=1.2;rr(x,y,w,62,4);ctx.stroke();
+    ctx.textAlign='center';ctx.font='10px Segoe UI, Arial';ctx.fillStyle='#a8946a';ctx.fillText(t.title.toUpperCase(),cx,y+7);
+    ctx.font=`19px ${SLAV}`;ctx.fillStyle='#ffd36a';ctx.fillText(t.name,cx,y+20);
+    ctx.font='12px Segoe UI, Arial';ctx.fillStyle='#e9d8ae';ctx.fillText(t.sub,cx,y+44);ctx.globalAlpha=1;
     if(t.t>3.2)toasts.shift()}
 };
 
