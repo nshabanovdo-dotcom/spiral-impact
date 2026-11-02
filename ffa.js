@@ -40,10 +40,10 @@ const FFA_N=10,FFA_LIM=15;
 // Яркие светящиеся шары, у каждой свой цвет. Подпись под шаром — мини-инструкция.
 const PU={
   heal:{name:'Хилка',desc:'+40 здоровья',col:'#5dff7a',rgb:'93,255,122',w:3},
-  rage:{name:'Ярость',desc:'урон ×1,5 на 12 с',col:'#ff3d2e',rgb:'255,61,46',w:2,t:12},
-  speed:{name:'Скорость',desc:'полёт быстрее на 12 с',col:'#ffd83a',rgb:'255,216,58',w:2,t:12},
-  chain:{name:'Длинная цепь',desc:'+4 звена на 15 с',col:'#2ad4ff',rgb:'42,212,255',w:2,t:15},
-  big:{name:'Большое оружие',desc:'оружие ×1,6 на 15 с',col:'#c46aff',rgb:'196,106,255',w:2,t:15}
+  rage:{name:'Ярость',desc:'урон ×1,5 на 24 с',col:'#ff3d2e',rgb:'255,61,46',w:2,t:24},
+  speed:{name:'Скорость',desc:'полёт быстрее на 24 с',col:'#ffd83a',rgb:'255,216,58',w:2,t:24},
+  chain:{name:'Длинная цепь',desc:'+4 звена на 30 с',col:'#2ad4ff',rgb:'42,212,255',w:2,t:30},
+  big:{name:'Большое оружие',desc:'оружие ×1,6 на 30 с',col:'#c46aff',rgb:'196,106,255',w:2,t:30}
 };
 const PU_IDS=Object.keys(PU);
 function randType(){let s=0;for(const id of PU_IDS)s+=PU[id].w;let r=Math.random()*s;for(const id of PU_IDS){r-=PU[id].w;if(r<=0)return id}return 'heal'}

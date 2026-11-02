@@ -74,7 +74,7 @@ HOOKS.hud.push(()=>{
   rot.style.display=on&&innerHeight>innerWidth?'flex':'none';
   if(!on||!player)return;
   $('tFire').style.display=player.W&&player.W.type==='ranged'?'flex':'none';
-  const AB=window.__abil&&__abil.AB,S=AB&&AB[player.alive?player.abil:window.__armory.prof.ability];
+  const AB=window.__abil&&__abil.AB,S=AB&&(AB[player.abil]||__abil.DAR[player.passive]);
   if(S){const cd=player.alive?Math.max(0,player.abCd||0):0,fr=cd/S.cd,key=S.name+'|'+Math.ceil(cd*4);
     if(key!==lastAb){lastAb=key;$('tAbilT').textContent=cd>0?cd.toFixed(1):S.name;const el=$('tAbil');el.style.borderColor=S.col;
       el.style.background=fr>0?`conic-gradient(rgba(0,0,0,.65) ${fr*360}deg, rgba(20,14,28,.5) 0)`:'rgba(20,14,28,.5)'}}
