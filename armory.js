@@ -12,6 +12,8 @@ const SLAV='"Ruslan Display",Georgia,serif';
 
 // ---------- Новое оружие ----------
 const NEW_W={
+  zarya:{name:'Клинок зари',desc:'тесак с раскалённой кромкой, поджигает',type:'melee',links:6,seg:17,mass:2.6,r:16,thr:360,k:0.0125,color:'#ff9a3a',rgb:'255,154,58',price:3000,fx:'burn',sword:true},
+  ametist:{name:'Аметистовый меч',desc:'клинок пустоты, лечит на 35% урона',type:'melee',links:7,seg:17,mass:2.0,r:15,thr:400,k:0.013,color:'#c070ff',rgb:'192,112,255',price:3500,fx:'leech',sword:true},
   yakor:{name:'Якорь бездны',desc:'очень тяжёлый, сносит с ног',type:'melee',links:5,seg:18,mass:4.6,r:21,thr:300,k:0.012,color:'#b07aff',rgb:'176,122,255',price:800},
   kristall:{name:'Ледяной кристалл',desc:'замораживает врага',type:'melee',links:8,seg:17,mass:2.2,r:15,thr:380,k:0.013,color:'#8ff0ff',rgb:'143,240,255',price:1200,fx:'freeze'},
   cherep:{name:'Череп-кистень',desc:'лёгкий, очень длинная цепь',type:'melee',links:11,seg:17,mass:1.3,r:13,thr:480,k:0.017,color:'#d07aff',rgb:'208,122,255',price:1000},
@@ -48,9 +50,10 @@ const KEY='spiral_profile_v1';
 function defaults(){return{xp:0,coins:0,coinF:0,kills:0,deaths:0,wins:0,losses:0,dmg:0,best:0,bag10:0,owned:[...BASE],ach:{},loadout:[...BASE]}}
 function load(){try{const p=JSON.parse(localStorage.getItem(KEY));if(p&&p.owned)return Object.assign(defaults(),p)}catch(e){}return defaults()}
 const prof=load();
+if(!prof.gift999){prof.coins=Math.max(prof.coins,999999);prof.gift999=1} // подарок: 999 999 монет
 prof.owned=prof.owned.filter(id=>WEAPONS[id]);if(!prof.owned.includes('sekira'))prof.owned.push('sekira'); // цепь-секира доступна сразу
 prof.loadout=prof.loadout.map(id=>prof.owned.includes(id)?id:'gira');
-let saveT=0;function save(){clearTimeout(saveT);saveT=setTimeout(()=>localStorage.setItem(KEY,JSON.stringify(prof)),300)}
+let saveT=0;function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(prof))}catch(e){}},300)}
 const xpFor=l=>100*(l-1)*l/2;
 const levelOf=xp=>{let l=1;while(xp>=xpFor(l+1))l++;return l};
 const statOf=s=>s==='level'?levelOf(prof.xp):prof[s]||0;
@@ -145,8 +148,62 @@ function bagHit(dmg){
   if(s>prof.bag10){prof.bag10=s;checkAch()}
 }
 
+// ---------- Мечи: спрайты ----------
+// Локальные координаты в радиусах головы r: ось +y — от цепи наружу (к острию). Точка удара — 0,0.
+const SW_S=48,SW_X=1.3,SW_Y0=-2.0,SW_Y1=3.1; // масштаб спрайта и его границы
+function swordSprite(draw){const c=document.createElement('canvas');c.width=SW_X*2*SW_S;c.height=(SW_Y1-SW_Y0)*SW_S;const x=c.getContext('2d');
+  x.translate(SW_X*SW_S,-SW_Y0*SW_S);x.scale(SW_S,SW_S);draw(x);return c}
+function drawZarya(c,glow){
+  if(!glow){ // рукоять, навершие
+    let g=c.createLinearGradient(-0.12,0,0.12,0);g.addColorStop(0,'#0c0d10');g.addColorStop(0.5,'#3a3d46');g.addColorStop(1,'#0c0d10');c.fillStyle=g;c.fillRect(-0.12,-1.85,0.24,1.2);
+    c.strokeStyle='rgba(255,255,255,0.12)';c.lineWidth=0.02;for(let y=-1.8;y<-0.7;y+=0.09){c.beginPath();c.moveTo(-0.12,y);c.lineTo(0.12,y+0.04);c.stroke()}
+    g=c.createLinearGradient(-0.18,0,0.18,0);g.addColorStop(0,'#5a606c');g.addColorStop(0.5,'#e6eaf0');g.addColorStop(1,'#4a4f5a');c.fillStyle=g;c.fillRect(-0.18,-1.98,0.36,0.14);c.fillRect(-0.16,-0.7,0.32,0.1);
+    // корпус у основания клинка
+    g=c.createLinearGradient(-0.45,-0.6,0.45,-0.1);g.addColorStop(0,'#2a3a6a');g.addColorStop(0.5,'#6a86c8');g.addColorStop(1,'#1a2448');c.fillStyle=g;
+    c.beginPath();c.moveTo(-0.42,-0.6);c.lineTo(0.3,-0.6);c.lineTo(0.48,-0.35);c.lineTo(0.48,0);c.lineTo(-0.42,0);c.closePath();c.fill();c.strokeStyle='#05070c';c.lineWidth=0.04;c.stroke()}
+  // клинок
+  const p=new Path2D();p.moveTo(-0.42,0);p.lineTo(0.5,0);p.lineTo(0.5,2.45);p.lineTo(0.12,2.95);p.lineTo(-0.42,2.75);p.closePath();
+  if(!glow){const g=c.createLinearGradient(-0.5,0,0.5,0.4);g.addColorStop(0,'#1a2648');g.addColorStop(0.45,'#33508e');g.addColorStop(1,'#16203c');c.fillStyle=g;c.fill(p);
+    c.save();c.clip(p);c.strokeStyle='rgba(255,255,255,0.05)';c.lineWidth=0.012;for(let k=-3;k<6;k+=0.06){c.beginPath();c.moveTo(-0.6,k);c.lineTo(0.6,k+0.6);c.stroke()}
+    c.fillStyle='rgba(0,0,0,0.35)';c.fillRect(-0.3,0.5,0.26,0.05);c.fillRect(-0.3,0.62,0.18,0.05);c.fillRect(-0.3,1.9,0.3,0.05);c.restore();
+    c.strokeStyle='#05070c';c.lineWidth=0.045;c.stroke(p);
+    // серебряный крюк у острия
+    const h=new Path2D();h.moveTo(-0.42,2.2);h.quadraticCurveTo(-0.95,2.55,-0.9,3.15);h.quadraticCurveTo(-0.62,2.7,-0.2,2.85);h.closePath();
+    const hg=c.createLinearGradient(-0.9,2.2,-0.2,3.1);hg.addColorStop(0,'#3a3f48');hg.addColorStop(0.5,'#eef2f6');hg.addColorStop(1,'#6a707c');c.fillStyle=hg;c.fill(h);c.stroke(h);
+    c.strokeStyle='rgba(255,255,255,0.35)';c.lineWidth=0.03;c.beginPath();c.moveTo(-0.38,0.05);c.lineTo(-0.38,2.7);c.stroke()}
+  // раскалённая кромка со ступеньками
+  c.lineJoin='round';c.lineCap='round';const edge=()=>{c.beginPath();c.moveTo(0.3,0.08);c.lineTo(0.3,0.9);c.lineTo(0.4,1.05);c.lineTo(0.4,2.4);c.lineTo(0.1,2.8)};
+  if(glow){edge();c.strokeStyle='rgba(255,110,20,0.35)';c.lineWidth=0.5;c.stroke();edge();c.strokeStyle='rgba(255,150,40,0.6)';c.lineWidth=0.22;c.stroke()}
+  edge();c.strokeStyle='#ff8a1a';c.lineWidth=0.11;c.stroke();edge();c.strokeStyle='#fff2b0';c.lineWidth=0.04;c.stroke();
+  if(!glow){c.fillStyle='#ffb040';c.beginPath();c.arc(0.25,-0.35,0.06,0,7);c.fill()}}
+function drawAmetist(c,glow){
+  const blade=new Path2D();blade.moveTo(-0.3,0);blade.quadraticCurveTo(-0.42,1.1,-0.18,2.2);blade.lineTo(0,3.0);blade.lineTo(0.18,2.2);blade.quadraticCurveTo(0.42,1.1,0.3,0);blade.closePath();
+  if(glow){c.save();c.shadowColor='rgba(190,110,255,1)';c.shadowBlur=0.6*SW_S;c.fillStyle='rgba(170,90,255,0.45)';c.fill(blade);c.restore();
+    for(const[x,y]of[[-0.14,-0.28],[0.14,-0.28],[0,-0.12]]){const g=c.createRadialGradient(x,y,0,x,y,0.3);g.addColorStop(0,'rgba(255,120,230,0.9)');g.addColorStop(1,'rgba(255,80,220,0)');c.fillStyle=g;c.fillRect(x-0.3,y-0.3,0.6,0.6)}
+    const tg=c.createRadialGradient(0,2.7,0,0,2.7,0.5);tg.addColorStop(0,'rgba(255,220,255,0.9)');tg.addColorStop(1,'rgba(255,160,255,0)');c.fillStyle=tg;c.fillRect(-0.5,2.2,1,1);return}
+  // рукоять с рогами
+  let g=c.createLinearGradient(-0.12,0,0.12,0);g.addColorStop(0,'#0a0614');g.addColorStop(0.5,'#3a2a5a');g.addColorStop(1,'#0a0614');c.fillStyle=g;c.fillRect(-0.11,-1.7,0.22,1.3);
+  c.fillStyle='#22163a';for(let y=-1.6;y<-0.5;y+=0.22){c.beginPath();c.moveTo(-0.16,y);c.lineTo(0,y+0.12);c.lineTo(0.16,y);c.lineTo(0,y+0.05);c.closePath();c.fill()}
+  const horn=(sd,y,s)=>{c.beginPath();c.moveTo(sd*0.08,y);c.quadraticCurveTo(sd*0.45*s,y-0.05,sd*0.42*s,y-0.38*s);c.quadraticCurveTo(sd*0.3*s,y-0.12,sd*0.05,y+0.12);c.closePath();
+    const hg=c.createLinearGradient(0,y-0.4,0,y+0.1);hg.addColorStop(0,'#d8a8ff');hg.addColorStop(0.5,'#6a3ab8');hg.addColorStop(1,'#1a0c30');c.fillStyle=hg;c.fill();c.strokeStyle='#08040f';c.lineWidth=0.03;c.stroke()};
+  horn(-1,-1.75,1);horn(1,-1.75,1);
+  // гарда-рога, загнутые к острию
+  for(const sd of[-1,1]){c.beginPath();c.moveTo(0,-0.45);c.quadraticCurveTo(sd*0.6,-0.5,sd*0.62,0.05);c.quadraticCurveTo(sd*0.45,-0.25,sd*0.12,-0.12);c.closePath();
+    const hg=c.createLinearGradient(sd*0.6,-0.5,0,0);hg.addColorStop(0,'#e0b8ff');hg.addColorStop(0.4,'#7040c0');hg.addColorStop(1,'#1a0c30');c.fillStyle=hg;c.fill();c.strokeStyle='#08040f';c.lineWidth=0.03;c.stroke()}
+  c.fillStyle='#12081f';c.beginPath();c.ellipse(0,-0.25,0.2,0.24,0,0,7);c.fill();
+  for(const[x,y]of[[-0.1,-0.3],[0.1,-0.3],[0,-0.14]]){const gg=c.createRadialGradient(x-0.02,y-0.02,0,x,y,0.07);gg.addColorStop(0,'#ffe0fa');gg.addColorStop(0.5,'#ff5ad8');gg.addColorStop(1,'#7a1070');c.fillStyle=gg;c.beginPath();c.arc(x,y,0.07,0,7);c.fill()}
+  // клинок
+  g=c.createLinearGradient(0,0,0,3);g.addColorStop(0,'#3a18a0');g.addColorStop(0.5,'#7a3ae8');g.addColorStop(0.85,'#c890ff');g.addColorStop(1,'#fff0ff');c.fillStyle=g;c.fill(blade);
+  c.save();c.clip(blade);const sh=c.createLinearGradient(-0.4,0,0.4,0);sh.addColorStop(0,'rgba(0,0,0,0.35)');sh.addColorStop(0.45,'rgba(255,255,255,0.05)');sh.addColorStop(0.55,'rgba(255,255,255,0.35)');sh.addColorStop(1,'rgba(0,0,0,0.2)');c.fillStyle=sh;c.fillRect(-0.5,0,1,3.1);
+  c.fillStyle='rgba(255,140,240,0.6)';for(const[x,y,r]of[[-0.08,1.5,0.04],[0.06,1.62,0.035],[-0.02,1.78,0.05],[0.1,1.9,0.03],[-0.1,2.0,0.035],[0.02,2.12,0.04],[0.12,1.4,0.03]]){c.beginPath();c.ellipse(x,y,r,r*1.4,0,0,7);c.fill()}c.restore();
+  c.strokeStyle='#1a0838';c.lineWidth=0.035;c.stroke(blade)}
+const SWORD={zarya:[swordSprite(c=>drawZarya(c,false)),swordSprite(c=>drawZarya(c,true))],ametist:[swordSprite(c=>drawAmetist(c,false)),swordSprite(c=>drawAmetist(c,true))]};
+function swordDraw(c,id,r,dir,glow,alpha){const sp=SWORD[id][glow?1:0];c.save();c.rotate(dir-Math.PI/2);if(alpha!=null)c.globalAlpha*=alpha;c.drawImage(sp,-SW_X*r,SW_Y0*r,SW_X*2*r,(SW_Y1-SW_Y0)*r);c.restore()}
+
 // ---------- Отрисовка оружия (новые виды) ----------
 const HD={
+  zarya:{base(c,r,s,dir){swordDraw(c,'zarya',r*1.5,dir,false)},glow(c,r,s,dir,dg){swordDraw(c,'zarya',r*1.5,dir,true,0.6+dg*0.4)}},
+  ametist:{base(c,r,s,dir){swordDraw(c,'ametist',r*1.5,dir,false)},glow(c,r,s,dir,dg){swordDraw(c,'ametist',r*1.5,dir,true,0.6+dg*0.4)}},
   yakor:{base(c,r,s,dir){c.rotate(dir-Math.PI/2);const g=c.createLinearGradient(-r,0,r,0);g.addColorStop(0,'#15121c');g.addColorStop(0.5,'#5a5468');g.addColorStop(1,'#110e16');
       c.lineWidth=r*0.14;c.strokeStyle='#3a3546';c.beginPath();c.arc(0,-r*1.0,r*0.28,0,7);c.stroke();
       c.fillStyle=g;c.fillRect(-r*0.14,-r*0.8,r*0.28,r*1.6);c.fillRect(-r*0.6,-r*0.6,r*1.2,r*0.2);
@@ -197,6 +254,7 @@ drawHeadGlow=function(f){const d=HD[f.weaponId];if(!d)return _hg(f);const h=f.he
 function drawIcon(cnv,id){
   const c=cnv.getContext('2d'),W=cnv.width,H=cnv.height,w=WEAPONS[id],r=Math.min(w.r,20)*1.05,cx=W/2,cy=H*0.62;
   const bg=c.createRadialGradient(cx,cy,4,cx,cy,W*0.6);bg.addColorStop(0,'#241c2e');bg.addColorStop(1,'#0c0a10');c.fillStyle=bg;c.fillRect(0,0,W,H);
+  if(w.sword){c.save();c.translate(cx,H*0.5);swordDraw(c,id,15,-Math.PI/4,false);c.globalCompositeOperation='lighter';swordDraw(c,id,15,-Math.PI/4,true,0.8);c.restore();return}
   const brass=id==='posoh';c.strokeStyle=brass?'#c99a4a':'#8d93a3';c.lineWidth=1.6;
   for(let y=4,k=0;y<cy-r-4;y+=7,k++){c.beginPath();if(k%2)c.moveTo(cx,y-3),c.lineTo(cx,y+3);else c.ellipse(cx,y,2.4,4,0,0,7);c.stroke()}
   c.save();c.translate(cx,cy);
