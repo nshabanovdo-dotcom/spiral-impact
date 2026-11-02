@@ -33,7 +33,7 @@ b{color:#e9d8ae;font-weight:600}
 <canvas id="game"></canvas>
 <div id="menu">
   <div class="panel">
-    <h1>Spiral Impact</h1>
+    <h1>Spiral Impact <span id="ver" style="font-size:16px;color:#a8946a;font-family:Segoe UI,Arial,sans-serif;letter-spacing:0"></span></h1>
     <div class="sub">Прототип физики оружия на цепи · бои с ботами без сервера</div>
     <div class="row"><div class="label">Имя</div><input type="text" id="name" maxlength="14" value="Игрок"></div>
     <div class="row"><div class="label">Морда</div><div class="choices" id="skins"></div></div>
@@ -51,6 +51,9 @@ b{color:#e9d8ae;font-weight:600}
 </div>
 <script>
 'use strict';
+// Версию повышать при каждом изменении игры и записывать в CHANGELOG.md
+const VERSION='0.3';
+document.title='Spiral Impact v'+VERSION;document.getElementById('ver').textContent='v'+VERSION;
 const cv=document.getElementById('game');const ctx=cv.getContext('2d');
 const lightCv=document.createElement('canvas'),lctx=lightCv.getContext('2d');const LS=0.5;
 const vigCv=document.createElement('canvas');
@@ -710,6 +713,7 @@ function drawHUD(){
     ctx.font='11px Segoe UI, Arial';ctx.fillStyle='#6f6656';ctx.fillText('до '+lim,VW/2,56)}
   ctx.textAlign='right';ctx.font='600 13px Segoe UI, Arial';
   feed.forEach((e,i)=>{if(time-e.t>6)return;const y=20+i*22;const vw=ctx.measureText(e.v).width;ctx.fillStyle=e.cv;ctx.fillText(e.v,VW-18,y);ctx.fillStyle='#8f8573';ctx.fillText(' ⚔ ',VW-18-vw,y);const sw=ctx.measureText(' ⚔ ').width;ctx.fillStyle=e.ca;ctx.fillText(e.a,VW-18-vw-sw,y)});
+  ctx.textAlign='left';ctx.font='600 12px Segoe UI, Arial';ctx.fillStyle='rgba(212,178,106,0.8)';ctx.fillText('Spiral Impact v'+VERSION,14,VH-42);
   ctx.textAlign='left';ctx.font='11.5px Segoe UI, Arial';ctx.fillStyle='rgba(168,148,106,0.7)';ctx.fillText('Мышь: полёт · ЛКМ: огонь · Пробел: рывок · 1/2/3: оружие · [ ]: чувствительность · M: звук'+(muted?' (выкл)':'')+' · Esc: меню',14,VH-22);
   ctx.textAlign='center';
   if(toast.t>0){ctx.globalAlpha=clamp(toast.t,0,1);ctx.font='600 16px Segoe UI, Arial';ctx.fillStyle='#e9d8ae';ctx.fillText(toast.text,VW/2,VH*0.22);ctx.globalAlpha=1}
