@@ -50,7 +50,6 @@ const KEY='spiral_profile_v1';
 function defaults(){return{xp:0,coins:0,coinF:0,kills:0,deaths:0,wins:0,losses:0,dmg:0,best:0,bag10:0,owned:[...BASE],ach:{},loadout:[...BASE]}}
 function load(){try{const p=JSON.parse(localStorage.getItem(KEY));if(p&&p.owned)return Object.assign(defaults(),p)}catch(e){}return defaults()}
 const prof=load();
-if(!prof.gift999){prof.coins=Math.max(prof.coins,999999);prof.gift999=1} // подарок: 999 999 монет
 prof.owned=prof.owned.filter(id=>WEAPONS[id]);if(!prof.owned.includes('sekira'))prof.owned.push('sekira'); // цепь-секира доступна сразу
 prof.loadout=prof.loadout.map(id=>prof.owned.includes(id)?id:'gira');
 let saveT=0;function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(prof))}catch(e){}},300)}
@@ -93,6 +92,7 @@ function drawNums(dt){
     if(n.tier==='burn'||n.tier==='coin'){
       ctx.font=`700 ${15*k|0}px Georgia, serif`;ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,0.85)';const t=n.tier==='coin'?'+'+n.dmg+' ◈':Math.round(n.dmg*10)/10;
       ctx.strokeText(t,0,0);ctx.fillStyle=n.tier==='coin'?'#ffd36a':'#ff9a3c';ctx.fillText(t,0,0);ctx.restore();continue}
+    if(n.tier==='word'){const S=26*k,pop=n.age<0.12?1+(1-n.age/0.12)*0.6:1;ctx.scale(pop,pop);ctx.font=`${S|0}px ${SLAV}`;ctx.lineWidth=S*0.14;ctx.strokeStyle='#1a0505';ctx.strokeText(n.word,0,0);ctx.fillStyle=n.color||'#ff6a5a';ctx.fillText(n.word,0,0);ctx.restore();continue}
     if(n.tier===1){ctx.font=`700 ${18*k|0}px Georgia, serif`;ctx.lineWidth=3.5;ctx.strokeStyle='rgba(0,0,0,0.85)';ctx.strokeText(Math.round(n.dmg),0,0);ctx.fillStyle='#f2ece0';ctx.fillText(Math.round(n.dmg),0,0);ctx.restore();continue}
     const S=[0,0,36,54,78][n.tier]*k,pop=n.age<0.12?1+(1-n.age/0.12)*0.9:1;
     ctx.rotate(n.rot);ctx.scale(pop,pop);ctx.font=`700 ${S|0}px ${GOTH}`;
@@ -447,5 +447,97 @@ $('aBack').onclick=closeArmory;
 $('aBag').onclick=()=>{arm.classList.add('hidden');refreshMenuWeapons();initAudio();if(AC&&AC.state==='suspended')AC.resume();const pm=sel.mode;sel.mode='bag';startGame();sel.mode=pm;hideMenu()};
 addEventListener('keydown',e=>{if(e.code==='Escape'&&!arm.classList.contains('hidden'))closeArmory()});
 refreshMenuWeapons();
+
+// ---------- Тестовый режим (ссылка с ?dev) ----------
+// Кнопки для проверки оружия: монеты, открыть всё, сбросить прогресс. Без ?dev в адресе их нет.
+if(/[?&]dev\b/.test(location.search)){
+  const box=document.createElement('div');box.style.cssText='margin-top:10px;padding:8px;border:1px dashed #6a3a3a;border-radius:4px;font-size:12px;color:#c08080';
+  box.innerHTML='Тестовый режим: <button class="sbtn" style="width:auto;margin:0 4px" id="dCoins">+5000 ◈</button><button class="sbtn" style="width:auto;margin:0 4px" id="dAll">Открыть всё оружие</button><button class="sbtn" style="width:auto;margin:0 4px" id="dReset">Сбросить прогресс</button>';
+  $('aBack').after(box);
+  $('dCoins').onclick=()=>{prof.coins+=5000;save();renderArmory()};
+  $('dAll').onclick=()=>{for(const id of ALL)if(!prof.owned.includes(id))prof.owned.push(id);save();renderArmory()};
+  $('dReset').onclick=()=>{if(!confirm('Сбросить уровень, монеты, достижения и купленное оружие?'))return;Object.assign(prof,defaults());save();renderArmory()};
+}
+
+// ---------- Выбивание оружия ----------
+// Сильное столкновение оружия с оружием: у кого импульс (масса × скорость) заметно меньше,
+// у того оружие отрывается и улетает; через 3 секунды оно само возвращается.
+const DISARM_SPEED=850,DISARM_RATIO=0.7,DISARM_TIME=3;
+let loose=[];
+ACH.push({id:'disarm10',name:'Разоружитель',desc:'Выбить оружие 10 раз',stat:'disarms',goal:10,coins:150});
+const canDisarm=f=>f.kind!=='bag'&&f.kind!=='dummy'&&!(f.disarmT>0)&&!(f.rearmT>time);
+function disarm(loser,winner){
+  const h=loser.head,id=loser.weaponId,w=WEAPONS[id];
+  const[hvx,hvy]=vel(h),dx=h.x-winner.head.x,dy=h.y-winner.head.y,dl=Math.hypot(dx,dy)||1;
+  setVel(h,hvx+dx/dl*500,hvy+dy/dl*500-200);
+  loose.push({weaponId:id,W:w,links:loser.links,head:h,chain:[...loser.links,h],body:loser.links[0]||h,spin:loser.spin,energy:loser.energy,trail:[],life:DISARM_TIME});
+  loser.savedWeapon=id;loser.weaponId=null;loser.links=[];loser.head=null;loser.chain=[loser.body];loser.trail=[];loser.disarmT=DISARM_TIME;
+  sparks(h.x,h.y,30,900);addP({type:'flash',x:h.x,y:h.y,life:0.18,max:0.18,size:90,rgb:'255,240,200'});addP({type:'ring',x:h.x,y:h.y,life:0.4,max:0.4,size:15,grow:600,rgb:w.rgb});
+  sfx('clash',1);
+  bigNums.push({x:loser.body.x,y:loser.body.y-60,vy:-40,age:0,life:1.6,tier:'word',word:'Обезоружен!',color:loser===player?'#ff6a5a':'#ffd36a',rot:0});
+  if(loser===player||winner===player){hitStop=Math.max(hitStop,0.08);shake=Math.min(30,shake+12)}
+  if(winner===player&&progressMode()){prof.disarms=(prof.disarms||0)+1;const m=mult();reward(30*m,5*m)}
+}
+function rearm(f){
+  f.disarmT=0;f.weaponId=f.savedWeapon;f.rearmT=time+1;
+  if(f.alive){f.buildWeapon();const h=f.head;addP({type:'ring',x:h.x,y:h.y,life:0.35,max:0.35,size:8,grow:260,rgb:f.W.rgb});addP({type:'flash',x:h.x,y:h.y,life:0.15,max:0.15,size:50,rgb:f.W.rgb});sfx('dash',0.4)}
+}
+const _interact=interact;
+interact=function(A,B){
+  let pre=null;
+  if(A.alive&&B.alive&&A.head&&B.head&&A.team!==B.team){const a=A.head,b=B.head,dx=b.x-a.x,dy=b.y-a.y,rr=a.r+b.r;
+    if(dx*dx+dy*dy<rr*rr){const d=Math.hypot(dx,dy)||1,[avx,avy]=vel(a),[bvx,bvy]=vel(b),s=-((bvx-avx)*dx/d+(bvy-avy)*dy/d);
+      if(s>DISARM_SPEED)pre={pa:A.W.mass*Math.hypot(avx,avy),pb:B.W.mass*Math.hypot(bvx,bvy)}}}
+  _interact(A,B);
+  if(pre&&A.alive&&B.alive&&A.head&&B.head){
+    if(pre.pa<pre.pb*DISARM_RATIO&&canDisarm(A))disarm(A,B);
+    else if(pre.pb<pre.pa*DISARM_RATIO&&canDisarm(B))disarm(B,A)}
+};
+const _sw=Fighter.prototype.setWeapon;
+Fighter.prototype.setWeapon=function(id){if(this.disarmT>0){this.savedWeapon=id;return}_sw.call(this,id)};
+const _tick2=tick;
+tick=function(f){_tick2(f);if(f.disarmT>0){f.disarmT-=DT;if(f.disarmT<=0)rearm(f)}};
+const _kill2=kill;
+kill=function(vic,att){if(vic.disarmT>0){vic.weaponId=vic.savedWeapon;vic.disarmT=0}_kill2(vic,att)};
+const _resetMatch=resetMatch;
+resetMatch=function(){for(const f of fighters)if(f.disarmT>0){f.weaponId=f.savedWeapon;f.disarmT=0}loose=[];_resetMatch()};
+const _startGame2=startGame;
+startGame=function(){loose=[];_startGame2()};
+const _botThink=botThink;
+botThink=function(f){
+  if(!(f.disarmT>0))return _botThink(f);
+  const b=f.body;let best=null,bd=1e9;
+  for(const o of fighters)if(o.alive&&o.team!==f.team){const d=Math.hypot(o.body.x-b.x,o.body.y-b.y);if(d<bd){bd=d;best=o}}
+  if(!best){f.ax=f.ay=0;return}
+  let dx=b.x-best.body.x,dy=b.y-best.body.y;const d=Math.hypot(dx,dy)||1;dx/=d;dy/=d;
+  const gx=clamp(b.x+dx*300,150,AW-150),gy=clamp(b.y+dy*300,150,AH-150);let ax=gx-b.x,ay=gy-b.y;const L=Math.hypot(ax,ay)||1;
+  f.ax=ax/L*MAXOFF*ACC;f.ay=ay/L*MAXOFF*ACC;f.look=[-dx,-dy];
+  if(bd<250&&Math.random()<DT*2)f.wantDash=true;
+};
+const _step=step;
+step=function(){
+  _step();
+  for(const L of loose){
+    L.life-=DT;for(const p of L.links)integrate(p,0.992,0,GRAV);integrate(L.head,0.997,0,GRAV);
+    for(let it=0;it<6;it++)for(let i=0;i<L.chain.length-1;i++)rope(L.chain[i],L.chain[i+1],L.W.seg);
+    for(const p of L.chain)bounds(p,0.4);pillars(L.head);
+    const[vx,vy]=vel(L.head);L.spin+=Math.hypot(vx,vy)*0.004*DT;
+    if(Math.random()<DT*15)addP({type:'ember',x:L.head.x+rnd(-8,8),y:L.head.y+rnd(-8,8),vy:rnd(-40,0),life:0.5,max:0.5,size:2,rgb:L.W.rgb});
+    if(L.life<=0)for(let i=0;i<8;i++)addP({type:'smoke',x:L.head.x,y:L.head.y,vx:rnd(-60,60),vy:rnd(-80,20),life:0.6,max:0.6,size:8,grow:30,drag:0.94,color:'60,54,70'});
+  }
+  loose=loose.filter(L=>L.life>0);
+};
+const _render2=render;
+// летящее выбитое оружие рисуется поверх кадра в мировых координатах
+render=function(dt){
+  _render2(dt);
+  if(!started)return;
+  if(loose.length){ctx.save();ctx.setTransform(DPR,0,0,DPR,0,0);ctx.translate(VW/2,VH/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);
+    for(const L of loose){ctx.globalAlpha=clamp(L.life/0.5,0,1);ctx.save();drawChain(L);ctx.restore();drawHeadBase(L);ctx.globalCompositeOperation='lighter';drawHeadGlow(L);ctx.globalCompositeOperation='source-over'}
+    ctx.restore()}
+  if(player&&player.alive&&player.disarmT>0){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`22px ${SLAV}`;ctx.lineWidth=4;ctx.strokeStyle='#1a0505';
+    const t='Оружие выбито · вернётся через '+player.disarmT.toFixed(1);ctx.strokeText(t,VW/2,VH-90);ctx.fillStyle='#ff8a6a';ctx.fillText(t,VW/2,VH-90)}
+};
+
 window.__armory={prof,ACH,levelOf,renderArmory,openArmory,bag:()=>BAG};
 })();
