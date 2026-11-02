@@ -2,10 +2,11 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Spiral Impact — прототип</title>
 <style>
 html,body{margin:0;height:100%;background:#050308;overflow:hidden;font-family:"Segoe UI",Arial,sans-serif;color:#e8e2d6;user-select:none}
-canvas{display:block}
+canvas{display:block;touch-action:none}
 #menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(20,14,28,.82),rgba(3,2,6,.95))}
 #menu.hidden{display:none}
 .panel{background:linear-gradient(#17121f,#0e0b14);border:1px solid #6b5a3a;border-radius:6px;padding:22px 30px;width:min(800px,94vw);max-height:94vh;overflow:auto;box-shadow:0 0 0 1px #000,0 20px 60px #000,inset 0 1px 0 #3a3020}
@@ -48,23 +49,24 @@ b{color:#e9d8ae;font-weight:600}
     <div class="help">
       Мышь <b>захватывается игрой</b> и не уходит за край окна. <b>Морда и есть курсор</b>: двигаете мышь, и она летит следом, остановились, и она останавливается (с инерцией). <b>Вращайте мышью круги</b>, и оружие раскрутится, а тяжёлое будет утаскивать вас за собой.<br>
       Урон зависит от <b>скорости удара</b>. Справа внизу показано, насколько быстро летит оружие.<br>
-      <b>ЛКМ</b>: выстрел (посох стреляет туда, куда летит шар) · <b>Пробел</b>: рывок · <b>1/2/3</b>: оружие · <b>[ ]</b>: чувствительность · <b>M</b>: звук · <b>Esc</b>: меню и освободить мышь
+      <b>ЛКМ</b>: выстрел (посох стреляет туда, куда летит шар) · <b>Пробел</b>: рывок · <b>E</b> или <b>ПКМ</b>: способность · <b>H</b>: подсказки · <b>1/2/3</b>: оружие · <b>[ ]</b>: чувствительность · <b>M</b>: звук · <b>Esc</b>: меню и освободить мышь
     </div>
   </div>
 </div>
 <script>
 'use strict';
 // Версию повышать при каждом изменении игры и записывать в CHANGELOG.md
-const VERSION='2.0';
+const VERSION='2.1';
 // Набор оружия на клавишах 1/2/3 — его задаёт склад оружия (armory.js)
 function LOADOUT(){return window.getLoadout?window.getLoadout():['gira','shar','posoh']}
 document.title='Spiral Impact v'+VERSION;document.getElementById('ver').textContent='v'+VERSION;
 const cv=document.getElementById('game');const ctx=cv.getContext('2d');
 const lightCv=document.createElement('canvas'),lctx=lightCv.getContext('2d');const LS=0.5;
 const vigCv=document.createElement('canvas');
-let VW=0,VH=0,DPR=1;
+let VW=0,VH=0,DPR=1,UIS=1; // UIS — масштаб интерфейса (на телефоне меньше 1, задаёт touch.js)
+const HOOKS={step:[],draw:[],lights:[],hud:[]}; // точки подключения модулей (ffa.js, abilities.js, touch.js)
 function resize(){
-  DPR=Math.min(window.devicePixelRatio||1,2);VW=innerWidth;VH=innerHeight;cv.width=VW*DPR;cv.height=VH*DPR;cv.style.width=VW+'px';cv.style.height=VH+'px';
+  UIS=window.uiScale?uiScale():1;DPR=Math.min(window.devicePixelRatio||1,2)*UIS;VW=innerWidth/UIS;VH=innerHeight/UIS;cv.width=Math.round(VW*DPR);cv.height=Math.round(VH*DPR);cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';
   lightCv.width=Math.ceil(VW*LS);lightCv.height=Math.ceil(VH*LS);
   vigCv.width=VW;vigCv.height=VH;const v=vigCv.getContext('2d');const g=v.createRadialGradient(VW/2,VH/2,Math.min(VW,VH)*0.3,VW/2,VH/2,Math.max(VW,VH)*0.75);
   g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,0.75)');v.fillStyle=g;v.fillRect(0,0,VW,VH);
@@ -76,7 +78,7 @@ const DT=1/120,GRAV=700,BODY_M=5,LINK_M=0.25,ACC=9,MAXOFF=320;
 // Управление игрока: морда сама «является» курсором — догоняет точку мыши жёсткой пружиной,
 // точка не может убежать дальше LEASH, поэтому остановил мышь — морда остановилась.
 const LEASH=160,KP=220,KD=24,AMAX=9000;
-const AW=4800,AH=3000; // размер арены (мира)
+let AW=4800,AH=3000; // размер арены (мира); в режиме «Все против всех» карта больше (ffa.js)
 // летающие камни-препятствия: сетка с небольшим разбросом, центр арены свободен под рунный круг
 const PILLARS=[[760,560,62],[1700,420,54],[2400,820,48],[3100,420,58],[4040,560,62],[1150,1280,70],[3650,1280,70],[620,2050,56],[1600,1900,50],[3200,1900,50],[4180,2050,56],[1150,2600,60],[2400,2280,64],[3650,2600,60]].map(([x,y,r])=>({x,y,r}));
 const TORCHES=[];for(let x=330;x<AW;x+=1030)TORCHES.push({x,y:230},{x,y:AH-270});for(const y of[1100,1900])TORCHES.push({x:120,y},{x:AW-120,y});
@@ -553,6 +555,7 @@ function step(){
   parts=parts.filter(p=>p.life>0);if(parts.length>2000)parts.splice(0,parts.length-2000);
   for(const n of nums){n.y+=n.vy*DT;n.vy*=0.98;n.life-=DT}nums=nums.filter(n=>n.life>0);
   if(mode==='horde'&&window.hordeStep)hordeStep();
+  for(const h of HOOKS.step)h();
   if(winner){winT-=DT;if(winT<=0)resetMatch()}
 }
 // ---------- Спрайты частиц: мягкие круги вместо квадратиков ----------
@@ -589,15 +592,18 @@ function sfx(type,v){
 }
 
 // ---------- Арена (запекается один раз) ----------
-const arenaCv=document.createElement('canvas');arenaCv.width=AW;arenaCv.height=AH;
+// Печёный слой арены — в половинном разрешении (тени, руны, пол, рамка, факелы). Кирпичная стена рисуется
+// узором прямо в кадре, камни — отдельными спрайтами в полном разрешении: так даже большая карта занимает мало памяти.
+const ARS=0.5;const arenaCv=document.createElement('canvas');let wallPat=null;
 function bakeArena(A){
-  const c=arenaCv.getContext('2d');c.clearRect(0,0,AW,AH);
+  arenaCv.width=Math.ceil(AW*ARS);arenaCv.height=Math.ceil(AH*ARS);wallPat=null;
+  const c=arenaCv.getContext('2d');c.setTransform(ARS,0,0,ARS,0,0);c.clearRect(0,0,AW,AH);
   if(A.gen){ // открытая арена: только рамка и летающие камни поверх картинки
     c.lineWidth=2;c.strokeStyle='rgba(212,178,106,0.5)';c.strokeRect(1,1,AW-2,AH-2);
   }else{
-  c.fillStyle='#0f0c14';c.fillRect(0,0,AW,AH);
   const wallT=texTint('bricks2',1.0,'#6a5a7a',0.35);
-  if(wallT){c.fillStyle=c.createPattern(wallT,'repeat');c.fillRect(0,0,AW,AH)}else{
+  if(wallT){wallPat=ctx.createPattern(wallT,'repeat')}else{
+  c.fillStyle='#0f0c14';c.fillRect(0,0,AW,AH);
   const bh=58;
   for(let row=0,y=0;y<AH;row++,y+=bh){let x=row%2?-rnd(30,70):0;
     while(x<AW){const w=rnd(95,155);c.fillStyle=`hsl(${rnd(245,275)|0},${rnd(6,14)|0}%,${rnd(12,20)|0}%)`;c.fillRect(x+2,y+2,w-4,bh-4);
@@ -606,7 +612,7 @@ function bakeArena(A){
       if(Math.random()<0.18){c.strokeStyle='rgba(0,0,0,0.5)';c.lineWidth=1.2;c.beginPath();let cx=x+rnd(10,w-10),cy=y+4;c.moveTo(cx,cy);for(let k=0;k<4;k++){cx+=rnd(-10,10);cy+=rnd(6,14);c.lineTo(cx,Math.min(cy,y+bh-4))}c.stroke()}
       if(Math.random()<0.08){c.fillStyle='rgba(0,0,0,0.35)';c.beginPath();c.arc(x+rnd(8,w-8),y+rnd(8,bh-8),rnd(3,8),0,7);c.fill()}
       x+=w}}
-  const id=c.getImageData(0,0,AW,AH),d=id.data;for(let i=0;i<d.length;i+=4){const n=(Math.random()-0.5)*16;d[i]+=n;d[i+1]+=n;d[i+2]+=n}c.putImageData(id,0,0);}
+  const id=c.getImageData(0,0,arenaCv.width,arenaCv.height),d=id.data;for(let i=0;i<d.length;i+=4){const n=(Math.random()-0.5)*16;d[i]+=n;d[i+1]+=n;d[i+2]+=n}c.putImageData(id,0,0);}
   for(let i=0;i<70;i++){const x=rnd(0,AW),y=rnd(0,AH),r=rnd(80,320);const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,'rgba(0,0,0,0.28)');g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2)}
   for(let i=0;i<40;i++){const x=rnd(0,AW),y=rnd(0,AH*0.6),l=rnd(100,400);const g=c.createLinearGradient(0,y,0,y+l);g.addColorStop(0,'rgba(0,0,0,0.25)');g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(x,y,rnd(3,10),l)}
   // вырезанный рунный круг
@@ -631,6 +637,8 @@ function bakeArena(A){
     c.strokeStyle='#0a0806';c.lineWidth=1.5;c.stroke();c.fillStyle='#2a221a';c.fillRect(-12,34,24,6);c.restore()}
   // летающие камни
   for(const p of PILLARS){
+    const S=Math.ceil(p.r*1.3*2+60),sc=document.createElement('canvas');sc.width=sc.height=S;p.spr=sc;p.so=S/2;
+    {const c=sc.getContext('2d');c.translate(S/2-p.x-11,S/2-p.y-15);
     c.save();c.translate(p.x+22,p.y+30);const sg=c.createRadialGradient(0,0,0,0,0,p.r*1.3);sg.addColorStop(0,'rgba(0,0,0,0.55)');sg.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=sg;c.beginPath();c.arc(0,0,p.r*1.3,0,7);c.fill();c.restore();
     c.save();c.translate(p.x,p.y);
     const pts=[];for(let i=0;i<9;i++){const a=i/9*Math.PI*2;pts.push([Math.cos(a)*p.r*rnd(0.95,1.12),Math.sin(a)*p.r*rnd(0.95,1.12)])}
@@ -645,8 +653,14 @@ function bakeArena(A){
     c.restore();c.strokeStyle='rgba(0,0,0,0.7)';c.lineWidth=2;c.stroke(path);
     p.cracks=[];for(let i=0;i<3;i++){const cr=[];let x=rnd(-10,10),y=rnd(-10,10);cr.push([x,y]);for(let k=0;k<5;k++){x+=rnd(-13,13);y+=rnd(-13,13);cr.push([clamp(x,-p.r*0.8,p.r*0.8),clamp(y,-p.r*0.8,p.r*0.8)])}p.cracks.push(cr)}
     c.strokeStyle='#1a0a2a';c.lineWidth=4;for(const cr of p.cracks){c.beginPath();cr.forEach((q,i)=>i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]));c.stroke()}
-    c.restore()}
+    c.restore()}p.ox=p.x+11;p.oy=p.y+15}
 }
+// стена узором и камни-спрайты, только то, что видно на экране
+function drawArenaLayers(){
+  const vw=VW/zoom/2+60,vh=VH/zoom/2+60,x0=Math.max(0,cam.x-vw),y0=Math.max(0,cam.y-vh),x1=Math.min(AW,cam.x+vw),y1=Math.min(AH,cam.y+vh);
+  if(wallPat&&x1>x0&&y1>y0){ctx.fillStyle='#0f0c14';ctx.fillRect(x0,y0,x1-x0,y1-y0);ctx.fillStyle=wallPat;ctx.fillRect(x0,y0,x1-x0,y1-y0)}
+  ctx.drawImage(arenaCv,0,0,AW,AH);
+  for(const p of PILLARS)if(p.spr&&Math.abs(p.x-cam.x)<vw+p.so&&Math.abs(p.y-cam.y)<vh+p.so)ctx.drawImage(p.spr,p.ox-p.so,p.oy-p.so)}
 bakeArena(ARENA);texReady.then(()=>bakeArena(ARENA)); // перепечь, когда загрузились фото-текстуры
 // ---------- Препятствия арен ----------
 // Шипы на стенах (урон при сильном ударе о них), маятники с шипастым шаром, зоны-ловушки (лава, пустота),
@@ -883,7 +897,7 @@ function bar(x,y,w,h,v,col){ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(x,y,w,h
 function render(dt){
   ctx.setTransform(DPR,0,0,DPR,0,0);ctx.fillStyle='#050308';ctx.fillRect(0,0,VW,VH);
   zoomPunch*=Math.exp(-dt*10);
-  zoom=clamp(Math.min(VW/1600,VH/1000),0.4,1.4)*(mode==='horde'?0.82:1)*(1+zoomPunch);
+  zoom=clamp(Math.min(VW/1600,VH/1000),0.4,1.4)*(mode==='horde'?0.82:1)*(window.zoomMul?zoomMul():1)*(1+zoomPunch);
   let tgt=null;
   if(player&&player.alive)tgt=player.body;else{const m=fighters.find(f=>f.alive&&f.team==='blue');if(m)tgt=m.body}
   if(tgt){const k=1-Math.exp(-dt*14);cam.x+=(tgt.x-cam.x)*k;cam.y+=(tgt.y-cam.y)*k}
@@ -891,7 +905,7 @@ function render(dt){
   const sx=(Math.random()-.5)*shake,sy=(Math.random()-.5)*shake;
   const world=()=>{ctx.setTransform(DPR,0,0,DPR,0,0);ctx.translate(VW/2,VH/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x+sx,-cam.y+sy)};
   world();
-  drawArenaBg();ctx.drawImage(arenaCv,0,0);drawTraps(0);
+  drawArenaBg();drawArenaLayers();drawTraps(0);
   const alive=fighters.filter(f=>f.alive);
   // тени на стене
   for(const f of alive){const b=f.body;ctx.globalAlpha=0.6;ctx.drawImage(shadowSpr,b.x+16-b.r*1.4,b.y+24-b.r*1.4,b.r*2.8,b.r*2.8);
@@ -908,6 +922,7 @@ function render(dt){
     if(f.head)drawHeadBase(f);
   }
   if(mode==='horde'&&window.hordeDraw)hordeDraw(0);
+  for(const h of HOOKS.draw)h(0);
   for(const p of projs){const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);g.addColorStop(0,'#3a1a0a');g.addColorStop(1,'#120604');ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,p.r*0.8,0,7);ctx.fill()}
   for(const p of parts){const al=clamp(p.life/p.max,0,1);
     if(p.type==='smoke'){const sz=p.size*2.2;ctx.globalAlpha=al*0.8;ctx.drawImage(softSpr(p.color,'smoke'),p.x-sz/2,p.y-sz/2,sz,sz);ctx.globalAlpha=1}
@@ -924,6 +939,7 @@ function render(dt){
   for(const p of parts)if(p.type==='flash')addLight(p.x,p.y,p.size*4,p.rgb,clamp(p.life/p.max,0,1));
   trapLights();
   if(mode==='horde'&&window.hordeLights)hordeLights();
+  for(const h of HOOKS.lights)h();
   renderLights(sx,sy);
   // свечение (поверх освещения)
   world();ctx.globalCompositeOperation='lighter';
@@ -946,6 +962,7 @@ function render(dt){
     else if(p.type==='ring'){ctx.strokeStyle=`rgba(${p.rgb},${al*0.7})`;ctx.lineWidth=3*al+0.5;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,7);ctx.stroke()}}
   drawTraps(1);
   if(mode==='horde'&&window.hordeDraw)hordeDraw(1);
+  for(const h of HOOKS.draw)h(1);
   ctx.globalCompositeOperation='source-over';
   // прицел игрока
   if(player&&player.alive&&!paused){const b=player.body,ax=aim.x,ay=aim.y,L=Math.hypot(ax-b.x,ay-b.y);
@@ -994,7 +1011,7 @@ function drawHUD(){
   if(w&&w.type==='ranged'){ctx.fillText('ОГОНЬ',26,83);bar(76,85,188,6,p.energy/100,'#ff8a2a')}
   const ids=LOADOUT();ctx.font='600 13px Segoe UI, Arial';ctx.textAlign='center';
   const total=ids.length*170;ids.forEach((id,i)=>{const x=VW/2-total/2+i*170;panel(x,VH-46,160,30);ctx.fillStyle=id===p.weaponId?'#f2ead6':'#6f6656';if(id===p.weaponId){ctx.strokeStyle='#d4b26a';ctx.lineWidth=1.5;rr(x,VH-46,160,30,4);ctx.stroke()}ctx.fillText((i+1)+'   '+WEAPONS[id].name,x+80,VH-38)});
-  if(p.head&&p.alive){
+  if(p.head&&p.alive&&!window.TOUCH){
     const[vx,vy]=vel(p.head),hs=Math.hypot(vx,vy),x0=VW-284,y0=VH-132;
     panel(x0,y0,270,118);ctx.textAlign='left';ctx.font='11px Segoe UI, Arial';ctx.fillStyle='#a8946a';ctx.fillText('СКОРОСТЬ ОРУЖИЯ',x0+12,y0+10);
     ctx.font='700 22px Segoe UI, Arial';ctx.fillStyle=hs>w.thr?w.color:'#f2ead6';ctx.fillText(Math.round(hs),x0+12,y0+26);
@@ -1010,18 +1027,19 @@ function drawHUD(){
   feed.forEach((e,i)=>{if(time-e.t>6)return;const y=20+i*22;const vw=ctx.measureText(e.v).width;ctx.fillStyle=e.cv;ctx.fillText(e.v,VW-18,y);ctx.fillStyle='#8f8573';ctx.fillText(' ⚔ ',VW-18-vw,y);const sw=ctx.measureText(' ⚔ ').width;ctx.fillStyle=e.ca;ctx.fillText(e.a,VW-18-vw-sw,y)});
   drawMinimap();
   ctx.textAlign='left';ctx.font='600 12px Segoe UI, Arial';ctx.fillStyle='rgba(212,178,106,0.8)';ctx.fillText('Spiral Impact v'+VERSION,14,VH-42);
-  ctx.textAlign='left';ctx.font='11.5px Segoe UI, Arial';ctx.fillStyle='rgba(168,148,106,0.7)';ctx.fillText('Мышь: полёт · ЛКМ: огонь · Пробел: рывок · 1/2/3: оружие · [ ]: чувствительность · M: звук'+(muted?' (выкл)':'')+' · Esc: меню',14,VH-22);
+  ctx.textAlign='left';ctx.font='11.5px Segoe UI, Arial';ctx.fillStyle='rgba(168,148,106,0.7)';ctx.fillText(window.TOUCH?'Палец: полёт и раскрутка · кнопки справа: рывок, способность, огонь · слоты оружия внизу':'Мышь: полёт · ЛКМ: огонь · Пробел: рывок · E / ПКМ: способность · 1/2/3: оружие · H: подсказки · M: звук'+(muted?' (выкл)':'')+' · Esc: меню',14,VH-22);
   ctx.textAlign='center';
   if(toast.t>0){ctx.globalAlpha=clamp(toast.t,0,1);ctx.font='600 16px Segoe UI, Arial';ctx.fillStyle='#e9d8ae';ctx.fillText(toast.text,VW/2,VH*0.22);ctx.globalAlpha=1}
   if(!p.alive&&!winner&&mode!=='horde'){ctx.font='700 36px Georgia, serif';ctx.fillStyle='#e0503e';ctx.fillText('Вас разнесли',VW/2,VH/2-60);ctx.font='17px Segoe UI, Arial';ctx.fillStyle='#e9d8ae';ctx.fillText('Возрождение через '+Math.max(0,p.respawnT).toFixed(1),VW/2,VH/2-14)}
   if(winner){ctx.font='700 46px Georgia, serif';ctx.fillStyle=TEAMC[winner];ctx.fillText(winner===p.team?'Победа':'Поражение',VW/2,VH/2-90);ctx.font='17px Segoe UI, Arial';ctx.fillStyle='#e9d8ae';ctx.fillText('Новый матч через '+Math.max(0,winT).toFixed(1),VW/2,VH/2-36)}
   if(mode==='horde'&&window.hordeHUD)hordeHUD();
+  for(const h of HOOKS.hud)h();
 }
 
 // ---------- Ввод ----------
 function lockPointer(){if(!cv.requestPointerLock)return;try{const r=cv.requestPointerLock({unadjustedMovement:true});if(r&&r.catch)r.catch(()=>{try{const r2=cv.requestPointerLock();if(r2&&r2.catch)r2.catch(()=>{})}catch(e){}})}catch(e){try{cv.requestPointerLock()}catch(e2){}}}
 document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===cv;if(!locked&&started&&!paused)showMenu()});
-addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;
+addEventListener('mousemove',e=>{mouse.x=e.clientX/UIS;mouse.y=e.clientY/UIS;
   if(locked&&!paused){aim.x+=e.movementX*sens/zoom;aim.y+=e.movementY*sens/zoom}});
 cv.addEventListener('mousedown',e=>{if(e.button===0){mouse.down=true;if(started&&!paused&&!locked)lockPointer()}});
 addEventListener('mouseup',e=>{if(e.button===0)mouse.down=false});
@@ -1056,7 +1074,7 @@ function makeChoices(id,items,key){
 makeChoices('skins',SKINS.map((s,i)=>({label:s.name,value:i,skin:i})),'skin');
 facesReady.then(()=>{const b=document.getElementById('start');b.disabled=false;b.style.opacity='';b.textContent='В бой';const bad=SKINS.filter(S=>S.file&&!S.img).length;if(bad)document.querySelector('.sub').textContent='Не удалось загрузить картинки голов ('+bad+'): откройте игру с сервера, например GitHub Pages';}).then(()=>makeChoices('skins',SKINS.filter(s=>!s.bag).map((s,i)=>({label:s.name,value:i,skin:i})),'skin'));
 makeChoices('weapons',Object.entries(WEAPONS).map(([k,w])=>({label:w.name,value:k,desc:w.desc})),'weapon');
-makeChoices('modes',[{label:'Тренировка',value:'train',desc:'манекены, просто полетать'},{label:'Дуэль 1 × 1',value:'duel',desc:'против бота, до 5'},{label:'Команды 4 × 4',value:'team',desc:'с ботами, до 15'},{label:'Нашествие',value:'horde',desc:'волны монстров'}],'mode');
+makeChoices('modes',[{label:'Тренировка',value:'train',desc:'манекены, просто полетать'},{label:'Дуэль 1 × 1',value:'duel',desc:'против бота, до 5'},{label:'Все против всех',value:'ffa',desc:'10 бойцов, большая карта, до 15'},{label:'Нашествие',value:'horde',desc:'волны монстров'}],'mode');
 makeChoices('arenas',[{label:'Случайная',value:'random',desc:'новая каждый бой'},...ARENAS.map(a=>({label:a.name,value:a.id,desc:a.desc}))],'arena');
 makeChoices('diffs',DIFFS.map((d,i)=>({label:d.name,value:i})),'diff');
 const sensEl=document.getElementById('sens');sensEl.value=sens;document.getElementById('sensv').textContent=sens.toFixed(2);
@@ -1078,5 +1096,8 @@ requestAnimationFrame(frame);
 </script>
 <script src="armory.js"></script>
 <script src="horde.js"></script>
+<script src="ffa.js"></script>
+<script src="abilities.js"></script>
+<script src="touch.js"></script>
 </body>
 </html>
